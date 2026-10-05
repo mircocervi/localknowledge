@@ -121,7 +121,7 @@ function diagramma() {
 }
 
 async function sezCome() {
-  C.innerHTML = `<section class="sezione">${testata("II · Per la lezione", "Come funziona, passo per passo",
+  C.innerHTML = `<section class="sezione">${testata("III · Per la lezione", "Come funziona, passo per passo",
     "Dal file sul disco alla risposta con la citazione. Ogni riquadro è un pezzo del programma che si può aprire e guardare.")}
     <div class="carta filiera">${diagramma()}</div>
     <div class="passi">
@@ -195,7 +195,7 @@ async function calcolaVettori() {
 // ============ III. Indice ============
 async function sezIndice() {
   const st = A.stato;
-  C.innerHTML = `<section class="sezione">${testata("III · L'indice", "Cosa ha letto l'app",
+  C.innerHTML = `<section class="sezione">${testata("IV · L'indice", "Cosa ha letto l'app",
     "Ogni documento, pagina per pagina, con i pezzi e i loro vettori. Clicca un documento per aprirlo.",
     `<div class="no-stampa" style="display:flex;gap:8px"><button class="btn" id="vettori-mancanti">${icona("chip")} Completa vettori</button></div>`)}
     <div class="tessere">
@@ -261,7 +261,7 @@ async function apriDocumento(id) {
 
 // ============ IV. Laboratorio ============
 function sezLaboratorio() {
-  C.innerHTML = `<section class="sezione">${testata("IV · Dietro le quinte", "Laboratorio di ricerca",
+  C.innerHTML = `<section class="sezione">${testata("V · Dietro le quinte", "Laboratorio di ricerca",
     "La stessa domanda vista dalle due ricerche, poi la fusione. È quello che succede prima che il modello scriva una parola.")}
     <div class="carta" style="padding:14px;display:flex;gap:10px;margin-bottom:18px">
       <input class="campo" id="lab-q" value="${esc(A.stato?.domande_esempio?.[1] || "")}" style="font-size:16px" aria-label="Domanda">
@@ -295,7 +295,7 @@ function sezLaboratorio() {
 
 // ============ V. Banco prova ============
 async function sezProva() {
-  C.innerHTML = `<section class="sezione">${testata("V · La prova finale", "Banco prova dei modelli",
+  C.innerHTML = `<section class="sezione">${testata("VI · La prova finale", "Banco prova dei modelli",
     "Le tre domande sulla data-room di Crinale, una per ogni modello scelto. L'app controlla da sola risposta e citazione.")}
     <div id="prove-attese"></div>
     <div class="carta" style="padding:18px;margin:16px 0" id="scelta-prova"><p class="piccolo">Chiedo i modelli<span class="puntini"></span></p></div>
@@ -315,6 +315,7 @@ async function sezProva() {
       <input class="campo mono" id="or-modello" placeholder="per esempio qwen/qwen3.8-27b" style="max-width:420px">` : `<p class="piccolo">OpenRouter: nessuna chiave impostata.</p>`}
     <div style="display:flex;gap:16px;align-items:center;margin-top:16px;flex-wrap:wrap">
       <button class="btn pieno" id="avvia-prova">${icona("spunta")} Avvia la prova</button>
+      <select class="campo" id="prova-modo" style="width:auto"><option value="auto">Lettura automatica</option><option value="tutto">Tutto l'archivio</option><option value="ricerca">Solo la ricerca (RAG)</option></select>
       <label class="interruttore"><input type="checkbox" id="prova-ragiona"> Lascia ragionare i modelli (più lento)</label>
       <span class="piccolo" id="avanzamento"></span></div>
     <div class="barra" style="margin-top:12px"><i id="barra-prova" style="width:0"></i></div>`;
@@ -322,7 +323,7 @@ async function sezProva() {
     const modelli = $$("#scelta-prova input[data-f]:checked").map(i => ({ fornitore: i.dataset.f, modello: i.value }));
     const or = $("#or-modello")?.value.trim();
     if (or) modelli.push({ fornitore: "openrouter", modello: or });
-    try { await api("/api/prova", { metodo: "POST", dati: { modelli, ragionamento: $("#prova-ragiona").checked } }); seguiProva(); }
+    try { await api("/api/prova", { metodo: "POST", dati: { modelli, ragionamento: $("#prova-ragiona").checked, modo: $("#prova-modo").value } }); seguiProva(); }
     catch (e) { biglietto(`${icona("avviso")}<div><b>Non parte</b><div class="piccolo">${esc(e.message)}</div></div>`, { colore: "var(--timbro)" }); }
   };
   if (stp.in_corso) seguiProva(); else disegnaEsiti(stp.risultati?.length ? stp.risultati : stp.ultima?.risultati, stp.prove, !stp.risultati?.length && stp.ultima);
@@ -353,7 +354,8 @@ function disegnaEsiti(ris, prove, salvata) {
       const [f, m] = k.split("\u0000");
       const righe = prove.map(p => ris.find(r => r.fornitore === f && r.modello === m && r.prova === p.id));
       const tot = righe.filter(r => r?.ok).length;
-      return `<tr><td><div class="mono" style="font-size:12.5px">${esc(nomeModello(m))}</div><div class="piccolo">${esc({ ollama: "Ollama", lmstudio: "LM Studio", openrouter: "OpenRouter" }[f])}</div></td>
+      const modo = righe.find(r => r?.modo)?.modo;
+      return `<tr><td><div class="mono" style="font-size:12.5px">${esc(nomeModello(m))}</div><div class="piccolo">${esc({ ollama: "Ollama", lmstudio: "LM Studio", openrouter: "OpenRouter" }[f])}${modo ? ` · ${modo === "tutto" ? "tutto l'archivio" : "ricerca"}` : ""}</div></td>
         ${righe.map(r => !r ? `<td class="piccolo">in attesa</td>` : `<td><button class="esito" data-r="${ris.indexOf(r)}">
           <span class="voto ${r.ok ? "si" : "no"}">${icona(r.ok ? "spunta" : "croce")} ${r.ok ? "GIUSTA" : r.errore ? "ERRORE" : "SBAGLIATA"}</span>
           <span class="piccolo">risposta ${r.contenuto ? "✓" : "✗"} · citazione ${r.citazione ? "✓" : "✗"} · ${secondi(r.secondi)}</span></button></td>`).join("")}
@@ -370,7 +372,7 @@ function disegnaEsiti(ris, prove, salvata) {
 
 // ============ VI. MCP ============
 async function sezMcp() {
-  C.innerHTML = `<section class="sezione">${testata("VI · Server MCP", "Collegare Archivio agli altri programmi",
+  C.innerHTML = `<section class="sezione">${testata("VII · Server MCP", "Collegare Archivio agli altri programmi",
     "Lo stesso stile del server MCP di Crinale: tu colleghi entrambi a Unsloth Studio (o a qualunque client MCP) e il modello usa documenti e dati insieme.")}
     <div class="nota" style="margin-bottom:18px">${icona("spina")}<div><b>In Unsloth Studio:</b> Add custom MCP → incolla l'URL → autenticazione nessuna.
       Per i documenti: <span class="mono">http://127.0.0.1:4100/mcp/documenti</span>. Per i numeri di Crinale: <span class="mono">http://127.0.0.1:5400/mcp</span>.</div></div>
@@ -435,7 +437,7 @@ async function disegnaMcp() {
 // ============ VII. Moduli ============
 async function sezModuli() {
   const st = await api("/api/stato");
-  C.innerHTML = `<section class="sezione">${testata("VII · Moduli", "Pezzi da accendere e spegnere",
+  C.innerHTML = `<section class="sezione">${testata("VIII · Moduli", "Pezzi da accendere e spegnere",
     "Un modulo aggiunge una scheda alla vista del cliente e, se serve, un proprio server MCP. Si accende qui, senza riavviare.")}
     ${st.moduli.map(m => `<div class="carta modulo">
       <div><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><span class="tag ocr">${esc(m.stato)}</span>${m.acceso ? '<span class="tag ok">acceso</span>' : '<span class="tag neutro">spento</span>'}</div>
@@ -458,7 +460,7 @@ async function sezModuli() {
 async function sezImpostazioni() {
   const [imp, mod] = await Promise.all([api("/api/impostazioni"), api("/api/modelli")]);
   const visione = [...(mod.lmstudio.modelli || []).map(m => ({ f: "lmstudio", id: m.id, v: m.tipo === "vlm" })), ...(mod.ollama.modelli || []).map(m => ({ f: "ollama", id: m.id, v: true }))];
-  C.innerHTML = `<section class="sezione">${testata("VIII · Impostazioni", "Come lavora l'app",
+  C.innerHTML = `<section class="sezione">${testata("IX · Impostazioni", "Come lavora l'app",
     "Salvate in indice/impostazioni.json, accanto all'indice. Mai nel codice.")}
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">
       <div class="carta comp"><div class="testa"><h3>OCR</h3></div>
@@ -498,7 +500,7 @@ async function sezImpostazioni() {
 
 // ============ IX. Registro ============
 function sezRegistro() {
-  C.innerHTML = `<section class="sezione">${testata("IX · Registro", "Quello che fa l'app, in diretta",
+  C.innerHTML = `<section class="sezione">${testata("X · Registro", "Quello che fa l'app, in diretta",
     "Indicizzazioni, OCR, file aggiunti o tolti dalle cartelle. Prova: copia un PDF nella cartella e guardalo comparire qui.")}
     <div class="carta registro" id="reg"></div></section>`;
   disegnaRegistro();

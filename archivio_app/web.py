@@ -387,6 +387,24 @@ def crea_app():
         return {"frasi": frasi, "dimensioni": int(v.shape[1]), "anteprima": [x[:16].round(3).tolist() for x in v],
                 "similarita": sim, "modello": config.leggi()["embedding"]["modello"]}
 
+    @app.get("/api/rag/numeri")
+    async def numeri_rag():
+        """I numeri veri dell'archivio per la lezione sul RAG."""
+        imp = config.leggi()
+        cartelle = archivio.cartelle_attive()
+        pagine = await asyncio.to_thread(archivio._pagine_tutte, cartelle)
+        caratteri = sum(len(p.testo) for p in pagine)
+        stat = indice.statistiche()["totale"]
+        ctx = await asyncio.to_thread(modelli.contesto, imp["fornitore"], imp["modello"])
+        noti = {f"{f} · {m}": c for (f, m), (c, _) in modelli._contesti.items() if c}
+        esempio = next((d for d in indice.documenti() if "Rinnovo_Nordwand_2024" in d["nome"]), None) \
+            or next(iter(indice.documenti()), None)
+        return {"caratteri": caratteri, "token": sum(modelli.stima_token(p.testo) for p in pagine),
+                "pagine": len(pagine), "documenti": len({p.doc_id for p in pagine}), "pezzi": stat["pezzi"],
+                "dimensioni": stat["dimensioni_vettore"], "modello": imp["modello"], "fornitore": imp["fornitore"],
+                "contesto": ctx, "contesti_noti": noti, "esempio_doc": esempio and esempio["id"],
+                "pezzo": imp["pezzi"], "estratti": imp["ricerca"]["estratti"], "embedding": imp["embedding"]["modello"]}
+
     # ---------------- sistema, impostazioni, mcp, moduli ----------------
 
     @app.get("/api/sistema")
