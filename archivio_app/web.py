@@ -126,6 +126,7 @@ def crea_app():
                        "modo": imp.get("modo", "auto")},
             "fornitori": {k: {"nome": v["nome"], "locale": v["locale"], "url": v["url"]} for k, v in config.FORNITORI.items()},
             "openrouter_chiave": bool(config.chiave_openrouter()),
+            "preferiti": imp.get("preferiti", {}),
             "moduli": moduli.elenco(),
             "domande_esempio": imp["domande_esempio"],
         }
@@ -150,11 +151,33 @@ def crea_app():
             campi["fornitore"] = d["fornitore"]
         if isinstance(d.get("modello"), str):
             campi["modello"] = d["modello"]
+            f = campi.get("fornitore") or config.leggi()["fornitore"]
+            campi["preferiti"] = {f: d["modello"]}
         if "ragionamento" in d:
             campi["ragionamento"] = bool(d["ragionamento"])
         if d.get("modo") in ("auto", "tutto", "ricerca"):
             campi["modo"] = d["modo"]
         return config.aggiorna(**campi) and {"ok": True}
+
+    @app.post("/api/ferma")
+    def ferma():
+        """Ferma le risposte in corso (e il banco prova tra una domanda e l'altra)."""
+        prova_finale.FERMA["si"] = True
+        return {"fermate": modelli.ferma_tutto()}
+
+    @app.post("/api/motore/spegni")
+    async def spegni_motore():
+        """Ferma tutto e toglie i modelli dalla memoria: il Mac si raffredda."""
+        prova_finale.FERMA["si"] = True
+        n = modelli.ferma_tutto()
+        r = await asyncio.to_thread(modelli.libera_tutto)
+        lavoratore.log(f"Motore spento: fermate {n} risposte, tolti dalla memoria {len(r['tolti'])} modelli.", "avviso")
+        return {"fermate": n, **r}
+
+    @app.get("/api/motore")
+    async def stato_motore():
+        return {"in_memoria": await asyncio.to_thread(modelli.in_memoria),
+                "risposte_in_corso": len(modelli._freni), "prova_in_corso": prova["in_corso"]}
 
     @app.post("/api/scalda")
     async def scalda(req: Request):

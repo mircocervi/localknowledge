@@ -317,6 +317,7 @@ async function sezProva() {
       <button class="btn pieno" id="avvia-prova">${icona("spunta")} Avvia la prova</button>
       <select class="campo" id="prova-modo" style="width:auto"><option value="auto">Lettura automatica</option><option value="tutto">Tutto l'archivio</option><option value="ricerca">Solo la ricerca (RAG)</option></select>
       <label class="interruttore"><input type="checkbox" id="prova-ragiona"> Lascia ragionare i modelli (più lento)</label>
+      <button class="btn rosso nascosto" id="ferma-prova">${icona("croce")} Ferma la prova</button>
       <span class="piccolo" id="avanzamento"></span></div>
     <div class="barra" style="margin-top:12px"><i id="barra-prova" style="width:0"></i></div>`;
   $("#avvia-prova").onclick = async () => {
@@ -332,13 +333,16 @@ async function sezProva() {
 function seguiProva() {
   clearInterval(A.timerProva);
   $("#avvia-prova").disabled = true;
+  const fp = $("#ferma-prova");
+  fp.classList.remove("nascosto");
+  fp.onclick = async () => { fp.disabled = true; await api("/api/ferma", { metodo: "POST" }); };
   A.timerProva = setInterval(async () => {
     if (!$("#barra-prova")) return clearInterval(A.timerProva);
     const s = await api("/api/prova");
     $("#barra-prova").style.width = (s.totale ? (s.fatti / s.totale) * 100 : 0) + "%";
     $("#avanzamento").innerHTML = s.in_corso ? `${s.fatti}/${s.totale} · ${esc(s.attuale?.modello || "")} · ${esc(s.attuale?.prova || "")}<span class="puntini"></span>` : "Fatto.";
     disegnaEsiti(s.risultati, s.prove);
-    if (!s.in_corso) { clearInterval(A.timerProva); $("#avvia-prova").disabled = false; }
+    if (!s.in_corso) { clearInterval(A.timerProva); $("#avvia-prova").disabled = false; $("#ferma-prova").classList.add("nascosto"); $("#ferma-prova").disabled = false; }
   }, 1500);
 }
 
@@ -534,6 +538,12 @@ async function aggiornaStato() {
       : `${numero(st.totale.documenti)} documenti · ${numero(st.totale.pezzi)} pezzi`;
   } catch { $("#stato-indice").innerHTML = `<span class="pallino spento"></span> app non raggiungibile`; }
 }
+
+$("#spegni-admin").addEventListener("click", async () => {
+  const r = await api("/api/motore/spegni", { metodo: "POST" }).catch(e => ({ errore: e.message }));
+  biglietto(r.errore ? `${icona("avviso")}<div><b>Non riuscito</b><div class="piccolo">${esc(r.errore)}</div></div>`
+    : `${icona("spina")}<div><b>Motore spento</b><div class="piccolo">${r.tolti.length ? "Tolti: " + r.tolti.map(esc).join(", ") : "Nessun modello era in memoria."}</div></div>`, { colore: "var(--ocra)" });
+});
 
 (async () => {
   await aggiornaStato();

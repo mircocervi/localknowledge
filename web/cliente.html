@@ -37,6 +37,9 @@
   .aggiungi:hover { background: var(--foglio); }
   .percorso-a-mano { display: flex; gap: 6px; margin-top: 8px; }
   .percorso-a-mano .campo { font: 12px var(--f-mono); padding: 7px 9px; }
+  .spegni { width: 100%; justify-content: center; margin-top: 16px; font-size: 13px; background: transparent; }
+  .spegni.caldo { border-color: color-mix(in srgb, var(--ocra) 60%, transparent); color: var(--ocra); background: var(--ocra-tenue); }
+  .spegni.caldo:hover { background: var(--ocra); color: var(--foglio); }
   .stato-servizi { margin-top: 26px; display: grid; gap: 7px; font-size: 12.5px; color: var(--inchiostro-2); }
   .stato-servizi div { display: flex; align-items: center; gap: 8px; }
 
@@ -187,6 +190,7 @@
       <button class="btn piccolo-btn" id="aggiungi-percorso">Aggiungi</button>
     </div>
     <div class="stato-servizi" id="servizi"></div>
+    <button class="btn spegni" id="spegni" title="Ferma tutto e toglie i modelli dalla memoria">Motore</button>
   </aside>
 
   <main class="centro">

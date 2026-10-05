@@ -220,7 +220,18 @@ async function mostraFornitore(f) {
   if (!S.modelli[f] || f === "openrouter" || !S.modelli[f].acceso) S.modelli[f] = await api(`/api/modelli/${f}`).catch(e => ({ acceso: false, errore: e.message }));
   if (S.fornitorePannello === f) disegnaListaModelli();
 }
-$("#segmenti").addEventListener("click", e => { const b = e.target.closest("[data-f]"); if (b) mostraFornitore(b.dataset.f); });
+$("#segmenti").addEventListener("click", async e => {
+  const b = e.target.closest("[data-f]");
+  if (!b) return;
+  const f = b.dataset.f, pref = S.stato.preferiti?.[f];
+  if (pref && f !== S.scelta.fornitore) {
+    S.scelta.fornitore = f; S.scelta.modello = pref;
+    await api("/api/scelta", { metodo: "POST", dati: S.scelta });
+    disegnaScelta();
+    scalda();
+  }
+  mostraFornitore(f);
+});
 $("#filtro-modelli").addEventListener("input", disegnaListaModelli);
 
 function disegnaListaModelli() {
@@ -285,7 +296,45 @@ $("#domanda").addEventListener("keydown", e => {
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey || !e.shiftKey)) { e.preventDefault(); chiedi(); }
 });
 $("#domanda").addEventListener("input", e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px"; });
-$("#invia").addEventListener("click", chiedi);
+$("#invia").addEventListener("click", () => (S.occupato ? fermaRisposta() : chiedi()));
+
+// ---------------- freno e spegnimento del motore ----------------
+
+const ETICHETTA_INVIA = () => `Chiedi ${icona("invia")}`;
+function modoInvio(occupato) {
+  const b = $("#invia");
+  b.disabled = false;
+  b.classList.toggle("rosso", occupato);
+  b.classList.toggle("pieno", !occupato);
+  b.innerHTML = occupato ? `${icona("croce")} Ferma` : ETICHETTA_INVIA();
+  b.title = occupato ? "Ferma la risposta: il modello smette di lavorare" : "";
+}
+async function fermaRisposta() {
+  S.controllo?.abort();
+  await api("/api/ferma", { metodo: "POST" }).catch(() => {});
+}
+async function spegniMotore() {
+  const b = $("#spegni");
+  b.disabled = true;
+  b.innerHTML = `${icona("spina")} Spengo<span class="puntini"></span>`;
+  S.controllo?.abort();
+  try {
+    const r = await api("/api/motore/spegni", { metodo: "POST" });
+    biglietto(`${icona("spina")}<div><b>Motore spento</b><div class="piccolo">${r.tolti.length ? "Tolti dalla memoria: " + r.tolti.map(esc).join(", ") : "Nessun modello era in memoria."}
+      Alla prossima domanda il modello si ricarica da solo.</div></div>`, { durata: 9000, colore: "var(--ocra)" });
+  } catch (e) { biglietto(`${icona("avviso")}<div><b>Non riuscito</b><div class="piccolo">${esc(e.message)}</div></div>`, { colore: "var(--timbro)" }); }
+  b.disabled = false;
+  aggiornaMotore();
+}
+async function aggiornaMotore() {
+  const m = await api("/api/motore").catch(() => null);
+  if (!m) return;
+  const b = $("#spegni");
+  const n = m.in_memoria.length;
+  b.innerHTML = `${icona("spina")} ${n ? `Spegni il motore · ${n} ${n === 1 ? "modello" : "modelli"} in memoria` : "Motore a riposo"}`;
+  b.title = n ? m.in_memoria.join("\n") : "Nessun modello in memoria";
+  b.classList.toggle("caldo", n > 0);
+}
 
 function disegnaVuoto(vuoto) {
   const r = $("#risposte");
@@ -300,9 +349,10 @@ function disegnaVuoto(vuoto) {
 async function chiedi() {
   const domanda = $("#domanda").value.trim();
   if (!domanda || S.occupato) return;
+  S.controllo = new AbortController();
   if (!S.scelta.modello) { apriPannello(true); return; }
   S.occupato = true;
-  $("#invia").disabled = true;
+  modoInvio(true);
   $("#domanda").value = "";
   $("#domanda").style.height = "auto";
   $("#vuoto")?.remove();
@@ -332,7 +382,7 @@ async function chiedi() {
   };
   try {
     const r = await fetch("/api/chiedi", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" }, signal: S.controllo.signal,
       body: JSON.stringify({ domanda, ...S.scelta }),
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `Errore ${r.status}`);
@@ -375,11 +425,19 @@ async function chiedi() {
     }
   } catch (e) {
     elTesto.classList.remove("cursore");
+    if (e.name === "AbortError") {
+      if (testo) { elTesto.innerHTML = rendiRisposta(testo, estratti); }
+      elTesto.insertAdjacentHTML(testo ? "beforeend" : "afterbegin", `<p class="tag neutro" style="margin-top:8px">${icona("croce")} fermata da te</p>`);
+      if (!testo) elTesto.querySelectorAll("p.piccolo").forEach(x => x.remove());
+      return;
+    }
     elTesto.innerHTML = `<div class="nota errore">${icona("avviso")}<div><b>Nessuna risposta.</b> ${esc(e.message)}</div></div>`;
   } finally {
     elTesto.classList.remove("cursore");
     S.occupato = false;
-    $("#invia").disabled = false;
+    S.controllo = null;
+    modoInvio(false);
+    setTimeout(aggiornaMotore, 800);
   }
 }
 
@@ -511,7 +569,9 @@ window.addEventListener("hashchange", instrada);
 (async () => {
   await caricaStato();
   controllaServizi();
-  scalda();
+  scalda().then(aggiornaMotore);
+  setInterval(aggiornaMotore, 10000);
+  $("#spegni").addEventListener("click", spegniMotore);
   setInterval(caricaStato, 2000);
   setInterval(controllaServizi, 15000);
   $("#domanda").focus();

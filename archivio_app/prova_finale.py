@@ -60,13 +60,21 @@ def modelli_accesi(filtro: list[str] | None = None) -> list[dict]:
     return out
 
 
+FERMA = {"si": False}  # il banco prova si ferma tra una domanda e l'altra
+
+
 def esegui(archivio, bersagli: list[dict], ragionamento: bool = False, avanzamento=None, modo: str = "auto") -> list[dict]:
+    FERMA["si"] = False
     risultati = []
     nome = time.strftime("prova_%Y-%m-%d_%H%M%S.json")
     totale = len(bersagli) * len(PROVE)
     fatti = 0
     for b in bersagli:
+        if FERMA["si"]:
+            break
         for p in PROVE:
+            if FERMA["si"]:
+                break
             if avanzamento:
                 avanzamento(fatti, totale, b, p)
             voce = {"fornitore": b["fornitore"], "modello": b["modello"], "prova": p["id"], "domanda": p["domanda"],

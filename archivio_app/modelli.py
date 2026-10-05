@@ -7,6 +7,20 @@ import httpx
 
 from . import config
 
+import threading
+
+# Ogni risposta in corso ha il suo "freno". /api/ferma li tira tutti.
+_freni: set = set()
+_freni_lock = threading.Lock()
+
+
+def ferma_tutto() -> int:
+    with _freni_lock:
+        for f in _freni:
+            f.set()
+        return len(_freni)
+
+
 ESCLUDI_CHAT = re.compile(r"embed|embedding|rerank|bge-|nomic-bert|whisper", re.I)
 
 
@@ -102,6 +116,10 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
     if not ragionamento:
         # i modelli "pensanti" rispondono subito, ma di solito con meno precisione
         corpo["reasoning_effort"] = "none"
+    freno = threading.Event()
+    with _freni_lock:
+        _freni.add(freno)
+    fermata = False
     inizio = time.perf_counter()
     primo = None
     uso = None
@@ -116,6 +134,9 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
                 r.read()
                 raise RuntimeError(f"{config.FORNITORI[fornitore]['nome']} ha risposto {r.status_code}: {r.text[:300]}")
             for riga in r.iter_lines():
+                if freno.is_set():  # chiudere la connessione ferma anche il modello
+                    fermata = True
+                    break
                 if not riga.startswith("data:"):
                     continue
                 dato = riga[5:].strip()
@@ -173,6 +194,9 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
             yield ("ragionamento" if dentro_think else "testo", buffer)
     except httpx.ConnectError:
         raise RuntimeError(_errore_leggibile(fornitore, httpx.ConnectError("")))
+    finally:
+        with _freni_lock:
+            _freni.discard(freno)
     fine = time.perf_counter()
     token = (uso or {}).get("completion_tokens")
     yield ("fine", {
@@ -182,7 +206,8 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
         "token_al_secondo": round(token / max(fine - (primo or inizio), 1e-3), 1) if token else None,
         "token_domanda": (uso or {}).get("prompt_tokens"),
         "troncata": motivo == "length",
-        "interrotta": motivo is None,  # il flusso si è chiuso senza dire perché: connessione caduta
+        "interrotta": motivo is None and not fermata,  # il flusso si è chiuso senza dire perché
+        "fermata": fermata,
         "vuota": caratteri == 0,
     })
 
@@ -232,12 +257,18 @@ def scalda(fornitore: str, modello: str) -> dict:
             ctx = next((m.get("context_length") for m in httpx.get(base + "/api/ps", timeout=5).json().get("models", [])
                         if m["name"] == modello), None)
         elif fornitore == "lmstudio":
+            import subprocess
             ctx = _contesto_lmstudio_caricato(modello)
+            if ctx is not None and ctx < 16384 and _lms():
+                # caricato "al volo" con un contesto piccolo: lo ricarichiamo con quello ampio
+                subprocess.run([_lms(), "unload", modello], capture_output=True, timeout=60)
+                ctx = None
             if ctx is None and _lms():
-                _lms_json("server", "start", timeout=60)
+                subprocess.run([_lms(), "server", "start"], capture_output=True, timeout=60)
                 massimo = next((m.get("maxContextLength") for m in _lms_json("ls", timeout=30) or []
                                 if m.get("modelKey") == modello), None) or CONTESTO_LMSTUDIO
-                _lms_json("load", modello, "-c", str(min(CONTESTO_LMSTUDIO, massimo)), "-y", "--identifier", modello)
+                subprocess.run([_lms(), "load", modello, "-c", str(min(CONTESTO_LMSTUDIO, massimo)), "-y",
+                                "--identifier", modello], capture_output=True, timeout=600)
                 ctx = _contesto_lmstudio_caricato(modello)
             if ctx is None:  # senza la riga di comando: lo carica LM Studio al primo messaggio
                 httpx.post(_base("lmstudio") + "/chat/completions", timeout=300, json={
@@ -275,6 +306,40 @@ def libera(fornitore: str, modello: str) -> None:
                 subprocess.run([lms, "unload", modello], capture_output=True, timeout=60)
     except Exception:
         pass
+
+
+def libera_tutto() -> dict:
+    """Spegne il motore: toglie dalla memoria tutti i modelli di Ollama e LM Studio."""
+    tolti = []
+    try:
+        base = _base("ollama").removesuffix("/v1")
+        for m in httpx.get(base + "/api/ps", timeout=5).json().get("models", []):
+            httpx.post(base + "/api/generate", json={"model": m["name"], "keep_alive": 0}, timeout=60)
+            tolti.append("Ollama · " + m["name"])
+    except Exception:
+        pass
+    for m in _lms_json("ps", timeout=30) or []:
+        tolti.append("LM Studio · " + (m.get("identifier") or m.get("modelKey") or "?"))
+    if _lms():
+        import subprocess
+        subprocess.run([_lms(), "unload", "--all"], capture_output=True, timeout=60)
+    _contesti.clear()
+    return {"tolti": tolti}
+
+
+def in_memoria() -> list[str]:
+    out = []
+    try:
+        base = _base("ollama").removesuffix("/v1")
+        out += ["Ollama · " + m["name"] for m in httpx.get(base + "/api/ps", timeout=3).json().get("models", [])]
+    except Exception:
+        pass
+    try:
+        dati = httpx.get(_base("lmstudio").removesuffix("/v1") + "/api/v0/models", timeout=3).json().get("data", [])
+        out += ["LM Studio · " + m["id"] for m in dati if m.get("state") == "loaded"]
+    except Exception:
+        pass
+    return out
 
 
 def risposta_completa(fornitore, modello, messaggi, **kw) -> tuple[str, str, dict]:
