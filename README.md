@@ -2,11 +2,34 @@
 
 Fai domande in italiano a una cartella di documenti. Le risposte arrivano **solo** dai documenti, con documento e pagina per ogni affermazione. Tutto gira su questo computer.
 
+**[La pagina di presentazione](https://mircocervi.github.io/localknowledge/)** · [Licenza](LICENSE.md) · [Novità](CHANGELOG.md)
+
+## Per cominciare
+
+Provato su Mac con Apple Silicon. Servono tre cose, da installare una volta sola.
+
+1. **uv**, che prepara le librerie e avvia l'app:
+   ```bash
+   brew install uv
+   ```
+   Senza Homebrew: `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+2. **[Ollama](https://ollama.com/download)**, con il modello dei vettori e un modello che risponde:
+   ```bash
+   ollama pull qwen3-embedding:0.6b
+   ollama pull hf.co/XHToken/Spark-X2.5-4B-GGUF:Q8_0
+   ```
+3. **Tesseract**, solo se hai PDF scansionati:
+   ```bash
+   brew install tesseract tesseract-lang
+   ```
+
+Poi scarica il progetto (da GitHub, **Code → Download ZIP**, oppure `git clone https://github.com/mircocervi/localknowledge.git`) e dalla sua cartella:
+
 ```bash
 uv run archivio.py
 ```
 
-Si apre `http://127.0.0.1:4100`. L'area admin è su `/admin`.
+Si apre `http://127.0.0.1:4100`. Al primo avvio uv scarica le librerie, e ci vuole qualche minuto. Dall'area admin, su `/admin`, scegli la cartella dei documenti: i tuoi, o quella del corso.
 
 ## Cosa fa
 
@@ -80,3 +103,9 @@ uv run server_mcp_documenti.py        # solo l'MCP, porta 4101
 Sicurezza:
 - il server ascolta solo su `127.0.0.1`;
 - rifiuta le richieste con un Host estraneo (DNS rebinding) e quelle che modificano qualcosa arrivando da altri siti (CSRF).
+
+## Licenza
+
+Gratis per lo studio, l'insegnamento e ogni uso non commerciale, con la [PolyForm Noncommercial 1.0.0](LICENSE.md). Per usarlo in un'azienda o in uno studio professionale serve una licenza scritta, anche questa gratuita: [come si chiede](COMMERCIAL.md). I componenti scritti da altri sono in [NOTICE.md](NOTICE.md).
+
+Archivio è di [Mirco Cervi](https://mircocervi.it).

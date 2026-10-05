@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "Se usi Archivio in una ricerca o in un corso, puoi citarlo così."
+title: "Archivio (localknowledge)"
+abstract: "Domande in italiano a una cartella di documenti, con documento e pagina per ogni affermazione. Ricerca ibrida, OCR, modelli locali, controllo delle citazioni dopo la risposta."
+type: software
+authors:
+  - family-names: "Cervi"
+    given-names: "Mirco"
+version: "1.0.0"
+date-released: "2026-10-05"
+license: PolyForm-Noncommercial-1.0.0
+url: "https://mircocervi.github.io/localknowledge/"
+repository-code: "https://github.com/mircocervi/localknowledge"
+keywords:
+  - retrieval-augmented generation
+  - local LLM
+  - document question answering
+  - OCR
+  - MCP
+  - Italian

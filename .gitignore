@@ -10,3 +10,8 @@ __pycache__/
 
 # l'indice e le impostazioni locali (percorsi delle cartelle) non vanno in git
 indice/
+
+# Note di lavoro di Mirco e di Claude Code: restano su questo computer.
+CLAUDE.md
+PASSAGGIO*.md
+.claude/

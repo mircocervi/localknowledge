@@ -1,0 +1,28 @@
+name: Qualcosa non va
+description: Un comportamento sbagliato o un errore.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Se un documento esce dal computer senza che l'app lo dica, non aprire un issue: leggi SECURITY.md e segnalalo in privato.**
+        Non incollare mai qui documenti veri. Usa documenti inventati.
+  - type: textarea
+    id: cosa
+    attributes:
+      label: Cosa è successo
+      description: Cosa hai fatto, cosa ti aspettavi, cosa è successo invece.
+    validations:
+      required: true
+  - type: textarea
+    id: come
+    attributes:
+      label: Come si riproduce
+      description: I passi nell'app, il modello usato, e un documento inventato se serve.
+    validations:
+      required: true
+  - type: input
+    id: versione
+    attributes:
+      label: Versione e sistema
+      placeholder: "1.0.0, macOS 15, Ollama 0.12"

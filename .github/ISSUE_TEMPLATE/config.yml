@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Problema di sicurezza
+    url: https://github.com/mircocervi/localknowledge/security/advisories/new
+    about: Documenti che escono dal computer, o un modo per leggerli da fuori. Si segnala in privato.
+  - name: Licenza per le aziende
+    url: https://github.com/mircocervi/localknowledge/blob/main/COMMERCIAL.md
+    about: Usare Archivio per lavoro.

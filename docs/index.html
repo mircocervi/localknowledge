@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Archivio · domande ai tuoi documenti, in locale</title>
+<meta name="description" content="Fai domande in italiano a una cartella di documenti. Ogni risposta porta documento e pagina, e gira tutto sul tuo computer.">
+<meta property="og:title" content="Archivio · domande ai tuoi documenti, in locale">
+<meta property="og:description" content="Ogni risposta porta documento e pagina. Ricerca ibrida, OCR, modelli locali, controllo delle citazioni.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='3' width='24' height='26' rx='2' fill='%23fbf8f2' stroke='%231c1a16' stroke-width='2'/%3E%3Cpath d='M9 10h14M9 15h14M9 20h8' stroke='%231c1a16' stroke-width='2'/%3E%3Ccircle cx='23' cy='22' r='4' fill='%23b0341c'/%3E%3C/svg%3E">
+<style>
+:root {
+  --carta: #f2ece1; --foglio: #fbf8f2; --inchiostro: #1c1a16; --inchiostro-2: #4a4439;
+  --grigio: #8b8374; --linea: #d8cfbe; --linea-forte: #bfb39c;
+  --timbro: #b0341c; --timbro-tenue: rgba(176, 52, 28, .09);
+  --verderame: #2c6a5c; --verderame-tenue: rgba(44, 106, 92, .1);
+  --ocra: #9c7212; --ocra-tenue: rgba(156, 114, 18, .12);
+  --ombra: 0 1px 0 rgba(60, 45, 20, .06), 0 10px 30px -18px rgba(60, 45, 20, .35);
+  --ombra-alta: 0 2px 0 rgba(60, 45, 20, .05), 0 24px 60px -28px rgba(40, 30, 10, .55);
+  --grana: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.27 0 0 0 0 0.15 0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --f-titolo: "Iowan Old Style", "New York", "Charter", "Palatino Linotype", Georgia, serif;
+  --f-testo: "Avenir Next", "Avenir", "Segoe UI", "Helvetica Neue", sans-serif;
+  --f-mono: "SF Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --carta: #12110e; --foglio: #1d1b17; --inchiostro: #efe7d8; --inchiostro-2: #c3b9a6;
+    --grigio: #8d8473; --linea: #34302a; --linea-forte: #4a443a;
+    --timbro: #e0644a; --timbro-tenue: rgba(224, 100, 74, .12);
+    --verderame: #6cbfa9; --verderame-tenue: rgba(108, 191, 169, .12);
+    --ocra: #d9aa45; --ocra-tenue: rgba(217, 170, 69, .13);
+    --ombra: 0 1px 0 rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+    --ombra-alta: 0 24px 60px -28px rgba(0,0,0,.9);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--carta) var(--grana); color: var(--inchiostro);
+  font: 17px/1.6 var(--f-testo); -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration-color: var(--linea-forte); text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--timbro); }
+code { font-family: var(--f-mono); font-size: .86em; }
+.pagina { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+/* testata */
+.testata { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; border-bottom: 1px solid var(--linea); }
+.marchio { display: flex; align-items: center; gap: 10px; font: 600 19px var(--f-titolo); text-decoration: none; }
+.marchio svg { width: 26px; height: 26px; }
+.testata nav { display: flex; gap: 22px; font-size: 15px; }
+.testata nav a { text-decoration: none; color: var(--inchiostro-2); }
+.testata nav a:hover { color: var(--inchiostro); }
+
+/* apertura */
+.apertura { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; padding: 72px 0 64px; }
+.occhiello { font: 600 12px var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--timbro); margin: 0 0 18px; }
+h1 { font: 500 clamp(38px, 5.4vw, 60px)/1.05 var(--f-titolo); letter-spacing: -.015em; margin: 0 0 22px; }
+h1 em { font-style: italic; color: var(--verderame); }
+.sottotitolo { font-size: 19px; color: var(--inchiostro-2); margin: 0 0 30px; max-width: 34em; }
+.comandi { display: flex; flex-wrap: wrap; gap: 12px; }
+.bottone { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 3px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid var(--inchiostro); }
+.bottone.pieno { background: var(--inchiostro); color: var(--carta); }
+.bottone.pieno:hover { background: var(--timbro); border-color: var(--timbro); }
+.bottone.vuoto:hover { background: var(--foglio); }
+
+/* la scheda di esempio */
+.scheda { position: relative; background: var(--foglio); border: 1px solid var(--linea); border-radius: 3px; box-shadow: var(--ombra-alta); padding: 26px 26px 22px; transform: rotate(.6deg); }
+.scheda::before { content: ""; position: absolute; inset: 8px -8px -8px 8px; border: 1px solid var(--linea); border-radius: 3px; background: var(--foglio); z-index: -1; transform: rotate(-1.4deg); }
+.etichetta { font: 600 11px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--grigio); margin: 0 0 8px; }
+.domanda { font: 500 22px/1.3 var(--f-titolo); margin: 0 0 18px; }
+.risposta { margin: 0 0 18px; font-size: 16px; }
+.cit { display: inline-block; font: 600 12px var(--f-mono); padding: 1px 6px; margin: 0 1px; border-radius: 3px; background: var(--verderame-tenue); color: var(--verderame); border: 1px solid transparent; cursor: pointer; vertical-align: 1px; }
+.cit:hover, .cit:focus-visible, .cit.accesa { border-color: var(--verderame); outline: none; }
+.fonti { display: grid; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
+.fonti li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: baseline; padding: 9px 12px; border: 1px solid var(--linea); border-radius: 3px; font-size: 14px; transition: border-color .15s, background .15s; }
+.fonti li.accesa { border-color: var(--verderame); background: var(--verderame-tenue); }
+.fonti b { font: 600 12px var(--f-mono); color: var(--verderame); }
+.fonti span small { display: block; color: var(--grigio); font-style: italic; }
+.timbri { display: flex; flex-wrap: wrap; gap: 8px; }
+.timbro { font: 600 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 8px; border-radius: 3px; border: 1px solid; }
+.timbro.ok { color: var(--verderame); border-color: var(--verderame); }
+.timbro.attenzione { color: var(--ocra); border-color: var(--ocra); background: var(--ocra-tenue); }
+.nota-esempio { font-size: 13px; color: var(--grigio); margin: 14px 0 0; }
+
+/* sezioni */
+section { padding: 64px 0; border-top: 1px solid var(--linea); }
+h2 { font: 500 clamp(28px, 3.6vw, 38px)/1.15 var(--f-titolo); margin: 0 0 14px; letter-spacing: -.01em; }
+.intro { color: var(--inchiostro-2); max-width: 40em; margin: 0 0 36px; }
+.passi { counter-reset: passo; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 0; padding: 0; list-style: none; }
+.passi li { counter-increment: passo; padding-top: 16px; border-top: 2px solid var(--inchiostro); }
+.passi li::before { content: counter(passo, decimal-leading-zero); display: block; font: 600 12px var(--f-mono); color: var(--timbro); margin-bottom: 8px; }
+.passi h3 { font: 600 17px var(--f-titolo); margin: 0 0 6px; }
+.passi p { margin: 0; font-size: 15px; color: var(--inchiostro-2); }
+
+.due { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+.elenco { margin: 0; padding: 0; list-style: none; }
+.elenco li { padding: 12px 0 12px 28px; border-bottom: 1px dashed var(--linea-forte); position: relative; font-size: 16px; }
+.elenco li::before { content: ""; position: absolute; left: 4px; top: 21px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--verderame); }
+.elenco.no li::before { border-color: var(--timbro); border-radius: 0; transform: rotate(45deg); width: 9px; height: 9px; }
+.citazione { font: italic 500 clamp(22px, 2.6vw, 28px)/1.35 var(--f-titolo); margin: 40px 0 0; padding-left: 20px; border-left: 3px solid var(--timbro); max-width: 30em; }
+
+.codice { background: var(--inchiostro); color: var(--carta); border-radius: 3px; padding: 18px 20px; margin: 0 0 12px; overflow-x: auto; font: 14px/1.7 var(--f-mono); }
+.codice .commento { color: var(--grigio); }
+.installa { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.installa h3 { font: 600 16px var(--f-titolo); margin: 0 0 8px; }
+.installa p { font-size: 14px; color: var(--inchiostro-2); margin: 0 0 10px; }
+.installa .codice { font-size: 13px; padding: 14px 16px; }
+.poi { margin-top: 28px; }
+
+.mcp { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.mcp li { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 12px 16px; background: var(--foglio); border: 1px solid var(--linea); border-radius: 3px; }
+.mcp code { color: var(--verderame); }
+
+footer { border-top: 1px solid var(--linea); padding: 32px 0 48px; font-size: 14px; color: var(--grigio); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .apertura > * { animation: entra .7s cubic-bezier(.2,.7,.2,1) both; }
+  .apertura > .scheda { animation-delay: .15s; }
+  @keyframes entra { from { opacity: 0; transform: translateY(12px); } }
+  .apertura > .scheda { animation-name: entra-scheda; }
+  @keyframes entra-scheda { from { opacity: 0; transform: translateY(16px) rotate(.6deg); } to { transform: rotate(.6deg); } }
+}
+@media (max-width: 860px) {
+  .apertura, .due { grid-template-columns: 1fr; gap: 40px; }
+  .apertura { padding: 44px 0 48px; }
+  .passi { grid-template-columns: 1fr 1fr; }
+  .installa { grid-template-columns: 1fr; }
+  .scheda { transform: none; }
+  .apertura > .scheda { animation-name: entra; }
+}
+@media (max-width: 520px) {
+  .pagina { padding: 0 16px; }
+  .passi { grid-template-columns: 1fr; }
+  .testata nav { display: none; }
+  section { padding: 48px 0; }
+}
+</style>
+</head>
+<body>
+<div class="pagina">
+
+<header class="testata">
+  <a class="marchio" href="#">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="3" width="24" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 10h14M9 15h14M9 20h8" stroke="currentColor" stroke-width="2"/><circle cx="23" cy="22" r="4" fill="#b0341c"/></svg>
+    Archivio
+  </a>
+  <nav aria-label="Sezioni">
+    <a href="#come">Come lavora</a>
+    <a href="#comincia">Per cominciare</a>
+    <a href="https://github.com/mircocervi/localknowledge">GitHub</a>
+  </nav>
+</header>
+
+<main>
+<div class="apertura">
+  <div>
+    <p class="occhiello">Sul tuo computer, in italiano</p>
+    <h1>Chiedi ai tuoi documenti. <em>Ti risponde con la pagina.</em></h1>
+    <p class="sottotitolo">Dai ad Archivio una cartella di contratti o verbali, e fagli una domanda come la faresti a un collega. Ogni affermazione della risposta porta il documento e la pagina da cui viene. Se l'informazione non c'è, lo dice.</p>
+    <div class="comandi">
+      <a class="bottone pieno" href="#comincia">Installalo</a>
+      <a class="bottone vuoto" href="https://github.com/mircocervi/localknowledge">Il codice su GitHub</a>
+    </div>
+  </div>
+
+  <article class="scheda" aria-label="Esempio di domanda e risposta">
+    <p class="etichetta">Domanda</p>
+    <p class="domanda">Con quanto preavviso va disdetto l'affitto del magazzino?</p>
+    <p class="etichetta">Risposta</p>
+    <p class="risposta">Tre mesi, con raccomandata o PEC <button class="cit" data-e="2" aria-label="Estratto 2">E2</button>. Il contratto del 2019 chiedeva sei mesi <button class="cit" data-e="1" aria-label="Estratto 1">E1</button>, ma il rinnovo del 2024 li ha ridotti, ed è la versione in vigore.</p>
+    <ul class="fonti">
+      <li data-e="1"><b>E1</b><span>Contratto_locazione_magazzino_2019.pdf · pagina 4<small>«…disdetta da comunicarsi con almeno sei mesi di preavviso…»</small></span></li>
+      <li data-e="2"><b>E2</b><span>Rinnovo_locazione_2024.pdf · pagina 2<small>«…il termine di preavviso di cui all'art. 7 è ridotto a tre mesi…»</small></span></li>
+    </ul>
+    <div class="timbri">
+      <span class="timbro ok">2 citazioni verificate</span>
+      <span class="timbro attenzione">2 versioni: vale il 2024</span>
+    </div>
+    <p class="nota-esempio">Un esempio con documenti inventati. Passa sopra le etichette per vedere da dove viene ogni frase.</p>
+  </article>
+</div>
+
+<section id="come" aria-labelledby="t-come">
+  <h2 id="t-come">Come lavora</h2>
+  <p class="intro">Un modello che risponde a memoria inventa con la stessa sicurezza con cui dice il vero. Archivio lo costringe a leggere, e poi controlla che abbia letto.</p>
+  <ol class="passi">
+    <li><h3>Legge la cartella</h3><p>PDF, Word, testo, CSV. Le pagine scansionate passano dall'OCR. Gli originali si aprono solo in lettura.</p></li>
+    <li><h3>Cerca in due modi</h3><p>Per parole, che trova codici, importi e nomi. Per significato, che trova lo stesso concetto detto con altre parole.</p></li>
+    <li><h3>Fa leggere il modello</h3><p>Se i documenti gli stanno in memoria, li legge tutti. Altrimenti legge le pagine intere più pertinenti.</p></li>
+    <li><h3>Controlla la risposta</h3><p>Citazioni che non esistono, frasi senza fonte, un documento superato da una versione più recente.</p></li>
+  </ol>
+</section>
+
+<section aria-labelledby="t-limiti">
+  <div class="due">
+    <div>
+      <h2 id="t-limiti">Cosa fa</h2>
+      <ul class="elenco">
+        <li>Gira con modelli locali, con Ollama o LM Studio. I documenti non escono dal computer.</li>
+        <li>Calcola sempre in locale i vettori di significato, qualunque modello risponda.</li>
+        <li>Toglie dai documenti le frasi che danno ordini a un'AI, prima che arrivino al modello, e te le mostra.</li>
+        <li>Si accorge da solo dei file nuovi o cambiati nella cartella.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Cosa non promette</h2>
+      <ul class="elenco no">
+        <li>Non sostituisce la lettura del documento quando la decisione conta. Ti dice dove guardare.</li>
+        <li>Con OpenRouter gli estratti escono dal computer. L'app lo dice con una fascia rossa, ma la scelta resta tua.</li>
+        <li>Un modello piccolo sbaglia di più. Il controllo delle citazioni lo rende visibile, non impossibile.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="citazione">Una risposta senza pagina è un'opinione. Con la pagina, è un fatto che puoi controllare.</p>
+</section>
+
+<section id="comincia" aria-labelledby="t-comincia">
+  <h2 id="t-comincia">Per cominciare</h2>
+  <p class="intro">Provato su Mac con Apple Silicon. Tre programmi da installare una volta sola, poi un comando.</p>
+  <div class="installa">
+    <div>
+      <h3>1 · uv</h3>
+      <p>Prepara le librerie e avvia l'app.</p>
+      <pre class="codice">brew install uv</pre>
+    </div>
+    <div>
+      <h3>2 · Ollama e due modelli</h3>
+      <p>Da <a href="https://ollama.com/download">ollama.com</a>. Uno calcola i vettori, l'altro risponde.</p>
+      <pre class="codice">ollama pull qwen3-embedding:0.6b
+ollama pull hf.co/XHToken/Spark-X2.5-4B-GGUF:Q8_0</pre>
+    </div>
+    <div>
+      <h3>3 · Tesseract, se serve</h3>
+      <p>Solo per i PDF scansionati.</p>
+      <pre class="codice">brew install tesseract tesseract-lang</pre>
+    </div>
+  </div>
+  <div class="poi">
+    <p>Scarica il progetto da GitHub (<b>Code → Download ZIP</b>), apri il Terminale nella sua cartella e avvialo:</p>
+    <pre class="codice">uv run archivio.py   <span class="commento"># si apre http://127.0.0.1:4100</span></pre>
+    <p>Dall'area admin, su <code>/admin</code>, scegli la cartella dei documenti. La prima indicizzazione richiede qualche minuto, poi le domande partono subito.</p>
+  </div>
+</section>
+
+<section aria-labelledby="t-mcp">
+  <h2 id="t-mcp">Collegarlo a un altro programma</h2>
+  <p class="intro">Archivio parla anche MCP, il protocollo con cui un'AI usa strumenti esterni. In Unsloth Studio: <i>Add custom MCP</i>, poi l'indirizzo, senza autenticazione. Gli strumenti sono tre: descrivere l'archivio, cercare nei documenti, leggere una pagina.</p>
+  <ul class="mcp">
+    <li><span>Con l'app accesa</span><code>http://127.0.0.1:4100/mcp/documenti</code></li>
+    <li><span>Da solo, con <code>uv run server_mcp_documenti.py</code></span><code>http://127.0.0.1:4101/mcp</code></li>
+  </ul>
+</section>
+</main>
+
+<footer>
+  <span>Archivio è di <a href="https://mircocervi.it">Mirco Cervi</a>. Gratis per lo studio e l'uso non commerciale: <a href="https://github.com/mircocervi/localknowledge/blob/main/LICENSE.md">licenza</a>.</span>
+  <span><a href="https://github.com/mircocervi/localknowledge/blob/main/CHANGELOG.md">Versione 1.0.0</a></span>
+</footer>
+
+</div>
+<script>
+// Le etichette E1, E2 accendono l'estratto da cui viene la frase.
+const fonti = document.querySelectorAll(".fonti li");
+for (const c of document.querySelectorAll(".cit")) {
+  const accendi = (si) => {
+    c.classList.toggle("accesa", si);
+    for (const f of fonti) f.classList.toggle("accesa", si && f.dataset.e === c.dataset.e);
+  };
+  c.addEventListener("mouseenter", () => accendi(true));
+  c.addEventListener("mouseleave", () => accendi(false));
+  c.addEventListener("focus", () => accendi(true));
+  c.addEventListener("blur", () => accendi(false));
+  c.addEventListener("click", () => accendi(!c.classList.contains("accesa")));
+}
+</script>
+</body>
+</html>
