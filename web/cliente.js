@@ -467,6 +467,7 @@ function concludi(card, testo, estratti, dati, tempiRicerca) {
       <div class="piccolo" style="margin-top:4px">L'app le ha tolte dagli estratti prima che arrivassero al modello: sono dati, non istruzioni.</div></div></div>`);
   }
   if (st.troncata && testo) chip.push(`<span class="tag ocr">risposta interrotta (limite token)</span>`);
+  if (st.ragionamento_forzato) chip.push(`<span class="tag ocr" title="Questo modello non risponde senza ragionare: l'app ha rifatto la domanda con il ragionamento acceso">ragionamento sempre acceso su questo modello</span>`);
   if (st.interrotta) chip.push(`<span class="tag no" title="Il server del modello ha chiuso la connessione prima della fine">${icona("avviso")} risposta interrotta: riprova</span>`);
   $(".verifica", card).insertAdjacentHTML("beforeend", chip.join(""));
   if (card._modo === "tutto") disegnaEstratti(card, estratti, $(".chiesta", card).textContent, v.citati);

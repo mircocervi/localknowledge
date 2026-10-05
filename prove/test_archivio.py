@@ -216,3 +216,40 @@ def test_riconosce_solo_i_veri_errori_di_contesto():
     assert modelli.e_contesto_pieno("request (4181 tokens) exceeds the available context size (4096 tokens)")
     assert modelli.e_contesto_pieno("This model's maximum context length is 32768 tokens")
     assert not modelli.e_contesto_pieno("'Response' object does not support the context manager protocol")
+
+
+def test_riconosce_il_ragionamento_obbligatorio():
+    """Claude Opus 5.5 su OpenRouter rispondeva 400 con «Ragionamento» spento,
+    e l'utente restava senza risposta: l'errore va riconosciuto per riprovare."""
+    from archivio_app import modelli
+    errore = ('{"error":{"message":"Reasoning is mandatory for this endpoint and cannot be '
+              'disabled.","code":400}}')
+    assert modelli.ragionamento_obbligatorio(errore)
+    assert not modelli.ragionamento_obbligatorio('{"error":{"message":"context length exceeded"}}')
+
+
+def test_con_ragionamento_obbligatorio_si_riprova_e_risponde(monkeypatch):
+    import json as _json
+    import httpx
+    from archivio_app import config, modelli
+    corpi = []
+
+    def risponde(richiesta):
+        corpo = _json.loads(richiesta.content)
+        corpi.append(corpo)
+        if "reasoning_effort" in corpo:
+            return httpx.Response(400, text='{"error":{"message":"Reasoning is mandatory for this '
+                                            'endpoint and cannot be disabled.","code":400}}')
+        flusso = ('data: {"choices":[{"delta":{"content":"Risposta."},"finish_reason":"stop"}]}\n\n'
+                  'data: [DONE]\n\n')
+        return httpx.Response(200, text=flusso, headers={"content-type": "text/event-stream"})
+
+    vero = httpx.Client
+    monkeypatch.setattr(modelli.httpx, "Client",
+                        lambda **k: vero(transport=httpx.MockTransport(risponde)))
+    monkeypatch.setattr(config, "chiave_openrouter", lambda: "finta")
+    eventi = list(modelli.conversa("openrouter", "anthropic/claude-opus-5.5",
+                                   [{"role": "user", "content": "ciao"}], ragionamento=False))
+    assert ("testo", "Risposta.") in eventi
+    assert eventi[-1][1]["ragionamento_forzato"] is True
+    assert len(corpi) == 2 and "reasoning_effort" not in corpi[1]

@@ -108,6 +108,11 @@ def _errore_leggibile(fornitore, e) -> str:
     return str(e)[:200]
 
 
+def ragionamento_obbligatorio(errore: str) -> bool:
+    """Il fornitore dice che questo modello non può rispondere senza ragionare."""
+    return "reasoning is mandatory" in (errore or "").lower()
+
+
 def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: float = 0.1, max_token: int = 8000,
              ragionamento: bool = True, contesto_token: int | None = None):
     """Genera eventi: ('ragionamento', testo) · ('testo', testo) · ('fine', statistiche).
@@ -125,6 +130,7 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
     if not ragionamento:
         # i modelli "pensanti" rispondono subito, ma di solito con meno precisione
         corpo["reasoning_effort"] = "none"
+    forzato = False
     freno = threading.Event()
     with _freni_lock:
         _freni.add(freno)
@@ -138,7 +144,7 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
     motivo = None
     try:
         cliente = httpx.Client(timeout=httpx.Timeout(600, connect=10))
-        for tentativo in range(3):  # 429 = troppe richieste (piano gratuito): si aspetta e si riprova
+        for tentativo in range(4):  # 429 = troppe richieste (piano gratuito): si aspetta e si riprova
             r = cliente.send(
                 httpx.Request("POST", _base(fornitore) + "/chat/completions", json=corpo,
                               headers=_intestazioni(fornitore)), stream=True)
@@ -146,6 +152,15 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
                 r.close()
                 time.sleep(6 * (tentativo + 1))
                 continue
+            if r.status_code == 400 and "reasoning_effort" in corpo:
+                r.read()
+                if ragionamento_obbligatorio(r.text):
+                    # Claude Opus su OpenRouter non spegne il ragionamento: si
+                    # richiede senza, invece di non rispondere affatto
+                    r.close()
+                    corpo.pop("reasoning_effort")
+                    forzato = True
+                    continue
             break
         with contextlib.closing(cliente), contextlib.closing(r):
             if r.status_code == 429:
@@ -231,6 +246,7 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
         "interrotta": motivo is None and not fermata,  # il flusso si è chiuso senza dire perché
         "fermata": fermata,
         "vuota": caratteri == 0,
+        "ragionamento_forzato": forzato,
     })
 
 
