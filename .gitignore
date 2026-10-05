@@ -6,3 +6,7 @@ node_modules/
 .venv/
 __pycache__/
 *.log
+.pytest_cache/
+
+# l'indice e le impostazioni locali (percorsi delle cartelle) non vanno in git
+indice/

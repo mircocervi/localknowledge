@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documento · Archivio</title>
+<link rel="stylesheet" href="/static/stile.css">
+<style>
+  .foglio { max-width: 820px; margin: 30px auto 80px; padding: 0 16px; }
+  .pagina { padding: 28px 34px; margin-bottom: 18px; scroll-margin-top: 80px; }
+  .pagina h2 { margin: 0 0 14px; font: 600 11px var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--grigio); display: flex; gap: 8px; align-items: center; }
+  .pagina pre { white-space: pre-wrap; font: 15px/1.7 var(--f-titolo); margin: 0; }
+  .pagina:target { box-shadow: inset 4px 0 0 var(--timbro), var(--ombra-alta); }
+</style>
+</head>
+<body>
+<header class="testata"><a class="marchio" href="/"><b>Archivio</b></a><div class="spazio"></div><span class="piccolo" id="info"></span></header>
+<div class="foglio" id="foglio"><p class="piccolo">Carico<span class="puntini"></span></p></div>
+<script src="/static/comune.js"></script>
+<script>
+(async () => {
+  const id = location.pathname.split("/")[2];
+  try {
+    const d = await api(`/api/documenti/${id}`);
+    const u = d.documento.unita === "sezione" ? "Sezione" : "Pagina";
+    document.title = d.documento.nome + " · Archivio";
+    $("#info").textContent = d.documento.relpath;
+    $("#foglio").innerHTML = `<h1 class="titolo" style="font-size:30px;margin:0 0 6px">${esc(d.documento.nome)}</h1>
+      <p class="piccolo" style="margin:0 0 22px">Testo estratto dall'app (l'originale non è modificabile da qui).</p>` +
+      d.pagine.map(p => `<article class="carta pagina" id="p${p.numero}"><h2>${u} ${p.numero} ${p.ocr ? '<span class="tag ocr">OCR</span>' : ""}</h2><pre>${esc(p.testo || "(vuota)")}</pre></article>`).join("");
+    if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
+  } catch (e) { $("#foglio").innerHTML = `<div class="nota errore">${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>

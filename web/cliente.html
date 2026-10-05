@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Archivio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231c1a16'/><text x='16' y='23' font-family='Georgia' font-style='italic' font-size='20' fill='%23f2ece1' text-anchor='middle'>A</text></svg>">
+<link rel="stylesheet" href="/static/stile.css">
+<style>
+  .impianto { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 0; min-height: calc(100vh - 62px); }
+  @media (max-width: 900px) { .impianto { grid-template-columns: 1fr; } .lato { border-right: 0; border-bottom: 1px solid var(--linea); } }
+
+  /* ---------- lato: cartelle ---------- */
+  .lato { padding: 26px 22px; border-right: 1px solid var(--linea); background: color-mix(in srgb, var(--carta-2) 45%, transparent); }
+  .lato h2 { font: 600 11px/1 var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--grigio); margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; }
+  .cassetto {
+    position: relative; padding: 13px 14px 12px 14px; margin-bottom: 10px; border-radius: 4px;
+    background: var(--foglio); border: 1px solid var(--linea); box-shadow: var(--ombra);
+    transition: border-color .2s, opacity .2s;
+  }
+  .cassetto::before { content: ""; position: absolute; left: 50%; top: -1px; width: 38px; height: 5px; margin-left: -19px; border-radius: 0 0 4px 4px; background: var(--linea-forte); }
+  .cassetto.spento { opacity: .55; }
+  .cassetto .riga1 { display: flex; align-items: center; gap: 9px; }
+  .cassetto .nome { font-family: var(--f-titolo); font-size: 17px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cassetto .percorso { font: 11px/1.4 var(--f-mono); color: var(--grigio); margin: 4px 0 8px; word-break: break-all; }
+  .cassetto .conti { display: flex; gap: 12px; font-size: 12.5px; color: var(--inchiostro-2); flex-wrap: wrap; }
+  .cassetto .conti b { font-weight: 600; color: var(--inchiostro); font-variant-numeric: tabular-nums; }
+  .cassetto .azioni { display: flex; gap: 2px; margin-top: 8px; margin-left: -6px; }
+  .cassetto .barra { margin-top: 10px; }
+  .cassetto .fase { font-size: 12px; color: var(--ocra); margin-top: 6px; }
+  .cassetto input[type=checkbox] { accent-color: var(--verderame); width: 16px; height: 16px; margin: 0; cursor: pointer; }
+  .elenco-doc { margin: 8px 0 0; padding: 8px 0 0; border-top: 1px dashed var(--linea); list-style: none; max-height: 280px; overflow: auto; }
+  .elenco-doc li { display: flex; gap: 6px; align-items: center; font-size: 12.5px; padding: 3px 0; }
+  .elenco-doc li a { color: var(--inchiostro-2); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .elenco-doc li a:hover { color: var(--timbro); text-decoration: underline; }
+  .aggiungi { width: 100%; justify-content: center; border-style: dashed; padding: 12px; background: transparent; }
+  .aggiungi:hover { background: var(--foglio); }
+  .percorso-a-mano { display: flex; gap: 6px; margin-top: 8px; }
+  .percorso-a-mano .campo { font: 12px var(--f-mono); padding: 7px 9px; }
+  .stato-servizi { margin-top: 26px; display: grid; gap: 7px; font-size: 12.5px; color: var(--inchiostro-2); }
+  .stato-servizi div { display: flex; align-items: center; gap: 8px; }
+
+  /* ---------- centro: domanda ---------- */
+  .centro { padding: 34px clamp(18px, 4vw, 56px) 80px; max-width: 1060px; width: 100%; }
+  .invito { font-family: var(--f-titolo); font-size: clamp(30px, 4.2vw, 46px); line-height: 1.06; font-weight: 500; letter-spacing: -.025em; margin: 6px 0 22px; max-width: 18ch; }
+  .invito em { color: var(--timbro); font-style: italic; }
+  .domanda {
+    position: relative; background: var(--foglio); border: 1px solid var(--linea-forte); border-radius: 6px;
+    box-shadow: var(--ombra-alta); padding: 16px 18px 12px; transition: border-color .2s, box-shadow .2s;
+  }
+  .domanda:focus-within { border-color: var(--inchiostro-2); }
+  .domanda textarea { width: 100%; border: 0; background: transparent; resize: none; font: 19px/1.45 var(--f-titolo); min-height: 56px; outline: none; padding: 0; }
+  .domanda textarea::placeholder { color: var(--grigio); font-style: italic; }
+  .domanda .piede { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+  .scelta-modello {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px 6px 9px; border-radius: 99px; border: 1px solid var(--linea);
+    background: var(--foglio-2); cursor: pointer; font-size: 13px; max-width: 100%;
+  }
+  .scelta-modello:hover { border-color: var(--inchiostro-2); }
+  .scelta-modello .forn { font-weight: 600; }
+  .scelta-modello .mod { font-family: var(--f-mono); font-size: 12px; color: var(--inchiostro-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+  .esempi { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+  .esempi button {
+    border: 1px solid var(--linea); background: transparent; border-radius: 99px; padding: 6px 13px; font-size: 13.5px; cursor: pointer; color: var(--inchiostro-2);
+    text-align: left; transition: all .15s;
+  }
+  .esempi button:hover { background: var(--foglio); color: var(--inchiostro); border-color: var(--linea-forte); }
+
+  /* pannello modello */
+  .pannello-modello { position: absolute; left: 12px; right: 12px; top: calc(100% + 8px); z-index: 25; padding: 16px; max-height: 70vh; display: flex; flex-direction: column; gap: 12px; }
+  .segmenti { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--carta-2); border-radius: 6px; }
+  .segmenti button { border: 0; background: transparent; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 13.5px; }
+  .segmenti button[aria-pressed="true"] { background: var(--foglio); box-shadow: var(--ombra); }
+  .lista-modelli { overflow: auto; border: 1px solid var(--linea); border-radius: 4px; max-height: 300px; }
+  .lista-modelli button { display: flex; width: 100%; align-items: center; gap: 10px; border: 0; border-bottom: 1px solid var(--linea); background: transparent; padding: 9px 12px; cursor: pointer; text-align: left; }
+  .lista-modelli button:last-child { border-bottom: 0; }
+  .lista-modelli button:hover { background: var(--foglio-2); }
+  .lista-modelli button[aria-selected="true"] { background: var(--verderame-tenue); }
+  .lista-modelli .id { font: 12.5px var(--f-mono); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lista-modelli .meta { font-size: 11.5px; color: var(--grigio); white-space: nowrap; }
+
+  /* ---------- risposte ---------- */
+  .risposte { margin-top: 38px; display: grid; gap: 28px; }
+  .risposta { padding: 26px 28px 22px; animation: entra .5s cubic-bezier(.2,1,.4,1) both; position: relative; }
+  .risposta .chiesta { font-family: var(--f-titolo); font-size: 22px; line-height: 1.25; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+  .risposta .chi { font-size: 12.5px; color: var(--grigio); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .risposta .testo { font-size: 16.5px; line-height: 1.65; margin: 18px 0 6px; max-width: 70ch; }
+  .risposta .testo p { margin: 0 0 .7em; }
+  .cursore::after { content: ""; display: inline-block; width: .5em; height: 1.05em; background: var(--timbro); margin-left: 2px; vertical-align: text-bottom; animation: lampeggia 1s steps(2) infinite; }
+  @keyframes lampeggia { 50% { opacity: 0; } }
+  .cit {
+    display: inline-flex; align-items: baseline; gap: 5px; margin: 0 2px; padding: 1px 7px 1px 2px; border-radius: 3px;
+    background: var(--timbro-tenue); color: var(--timbro); text-decoration: none; font: 500 12px/1.6 var(--f-mono); white-space: nowrap; vertical-align: 1px;
+    border: 1px solid color-mix(in srgb, var(--timbro) 25%, transparent); transition: background .15s;
+  }
+  .cit:hover { background: var(--timbro); color: var(--foglio); }
+  .cit-n { background: var(--timbro); color: var(--foglio); padding: 0 4px; border-radius: 2px; font-weight: 700; }
+  .cit:hover .cit-n { background: var(--foglio); color: var(--timbro); }
+  .cit.inventata { background: transparent; border-style: dashed; color: var(--grigio); padding: 1px 6px; }
+
+  /* timbro "non presente" */
+  .timbro-np {
+    display: inline-block; margin: 14px 0 8px; padding: 12px 20px 10px; color: var(--timbro);
+    font: 700 21px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase;
+    border: 3px double var(--timbro); border-radius: 6px; transform: rotate(-3.5deg);
+    mask-image: var(--grana), linear-gradient(#000, #000); -webkit-mask-composite: source-out;
+    animation: timbra .5s cubic-bezier(.3, 1.6, .5, 1) both; opacity: .92;
+  }
+  @keyframes timbra { from { transform: scale(1.8) rotate(-12deg); opacity: 0; } }
+
+  .verifica { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+  .versioni {
+    margin-top: 16px; padding: 13px 16px; border-radius: 3px; background: var(--ocra-tenue);
+    border: 1px solid color-mix(in srgb, var(--ocra) 35%, transparent); font-size: 14px; position: relative;
+  }
+  .versioni h4 { margin: 0 0 8px; font: 600 11px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ocra); display: flex; gap: 7px; align-items: center; }
+  .versioni ol { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 4px; align-items: center; }
+  .versioni li { display: inline-flex; align-items: center; gap: 4px; }
+  .versioni li + li::before { content: "→"; color: var(--grigio); margin: 0 4px; }
+  .versioni .v { padding: 3px 8px; border-radius: 3px; border: 1px solid var(--linea-forte); background: var(--foglio); font-size: 13px; }
+  .versioni .v.assente { border-style: dashed; color: var(--grigio); background: transparent; }
+  .versioni .v.recente { border-color: var(--inchiostro); font-weight: 600; box-shadow: 2px 2px 0 var(--ocra); }
+  .versioni p { margin: 8px 0 0; }
+
+  details.ragion { margin-top: 14px; border-top: 1px dashed var(--linea); padding-top: 10px; }
+  details.ragion summary { cursor: pointer; font-size: 13px; color: var(--grigio); display: inline-flex; gap: 6px; align-items: center; list-style: none; }
+  details.ragion summary::-webkit-details-marker { display: none; }
+  details.ragion pre { white-space: pre-wrap; font: 12.5px/1.55 var(--f-mono); color: var(--inchiostro-2); background: var(--foglio-2); padding: 12px; border-radius: 3px; max-height: 260px; overflow: auto; margin: 8px 0 0; }
+
+  .tempi { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--linea); font-size: 12.5px; color: var(--inchiostro-2); }
+  .tempi span { display: inline-flex; align-items: center; gap: 6px; }
+  .tempi b { font-variant-numeric: tabular-nums; color: var(--inchiostro); }
+
+  /* estratti come schede d'archivio */
+  .estratti-titolo { margin: 22px 0 10px; font: 600 11px/1 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--grigio); display: flex; align-items: center; gap: 10px; }
+  .estratti-titolo::after { content: ""; flex: 1; height: 1px; background: var(--linea); }
+  .estratti { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .schedina {
+    position: relative; padding: 12px 13px 11px 13px; border: 1px solid var(--linea); border-radius: 3px; background: var(--foglio-2);
+    font-size: 13px; display: flex; flex-direction: column; gap: 7px; opacity: .72; transition: opacity .2s, transform .2s, box-shadow .2s;
+  }
+  .schedina:hover { opacity: 1; transform: translateY(-2px); box-shadow: var(--ombra); }
+  .schedina.citata { opacity: 1; border-color: color-mix(in srgb, var(--timbro) 45%, transparent); background: var(--foglio); box-shadow: inset 3px 0 0 var(--timbro); }
+  .schedina .testa { display: flex; align-items: center; gap: 7px; }
+  .schedina .n { font: 700 11px/1 var(--f-mono); background: var(--inchiostro); color: var(--foglio); padding: 3px 5px; border-radius: 2px; }
+  .schedina.citata .n { background: var(--timbro); }
+  .schedina .doc { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; text-decoration: none; }
+  .schedina .doc:hover { color: var(--timbro); text-decoration: underline; }
+  .schedina .pag { font: 11.5px var(--f-mono); color: var(--grigio); white-space: nowrap; }
+  .schedina .brano { color: var(--inchiostro-2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .schedina.aperta .brano { -webkit-line-clamp: unset; }
+  .schedina mark { background: var(--ocra-tenue); color: inherit; padding: 0 1px; border-radius: 2px; box-shadow: 0 1px 0 var(--ocra); }
+  .schedina .ranghi { display: flex; gap: 10px; font: 10.5px var(--f-mono); color: var(--grigio); }
+  .schedina .ranghi i { font-style: normal; display: inline-flex; gap: 4px; align-items: center; }
+  .schedina .ranghi i::before { content: ""; width: 7px; height: 7px; border-radius: 1px; }
+  .schedina .ranghi .rp::before { background: var(--ocra); }
+  .schedina .ranghi .rs::before { background: var(--verderame); }
+
+  .vuoto { text-align: center; padding: 70px 20px; }
+  .vuoto .titolo { font-size: 26px; margin: 16px 0 8px; }
+  .vuoto p { color: var(--inchiostro-2); max-width: 46ch; margin: 0 auto 22px; }
+
+  .pagina-bi { padding: 40px 0; }
+  .pagina-bi .carta { padding: 36px; max-width: 760px; }
+</style>
+</head>
+<body>
+<div id="fascia"></div>
+<header class="testata">
+  <a class="marchio" href="/"><b>Archivio</b><span class="sigillo">in locale</span></a>
+  <nav class="schede" id="schede" aria-label="Sezioni">
+    <a href="/" aria-current="page" data-scheda="documenti">Documenti</a>
+  </nav>
+  <div class="spazio"></div>
+  <span class="piccolo" id="stato-indice"></span>
+</header>
+
+<div class="impianto" id="vista-documenti">
+  <aside class="lato">
+    <h2>Cartelle <span id="conto-cartelle"></span></h2>
+    <div id="cartelle"></div>
+    <button class="btn aggiungi" id="aggiungi"><span data-icona="piu"></span> Aggiungi cartella</button>
+    <div class="percorso-a-mano nascosto" id="a-mano">
+      <input class="campo" id="percorso" placeholder="/Users/…/data-room" aria-label="Percorso della cartella">
+      <button class="btn piccolo-btn" id="aggiungi-percorso">Aggiungi</button>
+    </div>
+    <div class="stato-servizi" id="servizi"></div>
+  </aside>
+
+  <main class="centro">
+    <h1 class="invito">Chiedi ai tuoi <em>documenti</em>. Rispondono solo loro.</h1>
+    <div class="domanda" id="box-domanda">
+      <textarea id="domanda" rows="2" placeholder="Scrivi una domanda in italiano…" aria-label="Domanda"></textarea>
+      <div class="piede">
+        <button class="scelta-modello" id="apri-modello" aria-haspopup="dialog" aria-expanded="false">
+          <span class="pallino" id="pallino-modello"></span><span class="forn" id="forn-nome">—</span><span class="mod" id="mod-nome"></span>
+          <span data-icona="freccia_giu"></span>
+        </button>
+        <label class="interruttore" title="I modelli che ragionano sono più precisi ma più lenti">
+          <input type="checkbox" id="ragionamento"> Ragionamento
+        </label>
+        <div class="spazio"></div>
+        <span class="piccolo nascosto" id="scorciatoia">⌘ Invio</span>
+        <button class="btn pieno" id="invia">Chiedi <span data-icona="invia"></span></button>
+      </div>
+      <div class="carta pannello-modello nascosto" id="pannello-modello" role="dialog" aria-label="Scegli il modello">
+        <div class="segmenti" id="segmenti"></div>
+        <div id="nota-fornitore"></div>
+        <input class="campo nascosto" id="filtro-modelli" placeholder="Cerca un modello…">
+        <div class="lista-modelli" id="lista-modelli"></div>
+        <p class="piccolo" style="margin:0">I vettori si calcolano sempre in locale con Ollama, qualunque modello risponda.</p>
+      </div>
+    </div>
+    <div class="esempi" id="esempi"></div>
+    <section class="risposte" id="risposte" aria-live="polite"></section>
+  </main>
+</div>
+
+<div class="centro pagina-bi nascosto" id="vista-bi">
+  <div class="carta">
+    <span class="tag neutro">in preparazione</span>
+    <h1 class="invito" style="margin-top:16px">Business Intelligence su <em>Crinale</em></h1>
+    <p>Qui arriveranno domande in italiano sui numeri di Crinale, con grafici e tabelle. Il modulo userà gli stessi dati
+      del server MCP di Crinale (DuckDB): documenti e numeri, interrogati insieme.</p>
+    <p class="piccolo">Prossima serata.</p>
+  </div>
+</div>
+
+<script src="/static/comune.js"></script>
+<script src="/static/cliente.js"></script>
+</body>
+</html>
