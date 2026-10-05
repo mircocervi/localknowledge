@@ -492,9 +492,9 @@ function disegnaLettura(card, d) {
   const tok = d.token_documenti ? `circa ${numero(d.token_documenti)} token` : "";
   const ctx = d.contesto ? `memoria di lavoro del modello ${numero(d.contesto)} token` : "";
   el.innerHTML = d.modo === "tutto"
-    ? `<span class="tag ok" title="L'archivio entra tutto nel contesto del modello: niente ricerca, legge ogni pagina">${icona("doc")} tutto l'archivio</span>
+    ? `<span class="tag ok" title="L'archivio entra tutto nel contesto del modello: niente ricerca, legge ogni pagina">${icona("doc")} tutto l'archivio · senza RAG</span>
        ${d.estratti.length} pagine di ${d.documenti} documenti · ${tok} · ${ctx}`
-    : `<span class="tag neutro" title="Ricerca ibrida (RAG): solo le pagine più pertinenti arrivano al modello">${icona("lente")} ricerca · RAG</span>
+    : `<span class="tag neutro" title="Ricerca ibrida (RAG): solo le pagine più pertinenti arrivano al modello">${icona("lente")} RAG · ricerca</span>
        ${d.estratti.length} pagine di ${d.documenti} documenti · ${tok} · ${ctx}`;
 }
 

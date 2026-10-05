@@ -97,40 +97,73 @@ ollama pull hf.co/XHToken/Spark-X2.5-4B-GGUF:Q8_0   # Spark X2.5 4B</pre>`;
 
 // ============ II. Come funziona ============
 function diagramma() {
-  const box = (x, y, w, t1, t2, col = "var(--inchiostro)") => `
-    <g><rect x="${x}" y="${y}" width="${w}" height="64" rx="4" fill="var(--foglio)" stroke="${col}" stroke-width="1.3"/>
-    <text x="${x + w / 2}" y="${y + 27}" text-anchor="middle" font-size="14" font-weight="600">${t1}</text>
-    <text x="${x + w / 2}" y="${y + 46}" text-anchor="middle" font-size="11.5" style="fill:var(--grigio)">${t2}</text></g>`;
-  const fr = (x1, y1, x2, y2) => `<path d="M${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}" fill="none" stroke="var(--linea-forte)" stroke-width="1.5" marker-end="url(#punta)"/>`;
-  return `<svg viewBox="0 0 1100 230" role="img" aria-label="Il percorso di un documento e di una domanda">
+  const box = (x, y, w, t1, t2, col = "var(--inchiostro)", h = 64, sfondo = "var(--foglio)") => `
+    <g><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${sfondo}" stroke="${col}" stroke-width="1.4"/>
+    <text x="${x + w / 2}" y="${y + h / 2 - 5}" text-anchor="middle" font-size="14" font-weight="600">${t1}</text>
+    <text x="${x + w / 2}" y="${y + h / 2 + 14}" text-anchor="middle" font-size="11.5" style="fill:var(--grigio)">${t2}</text></g>`;
+  const fr = (x1, y1, x2, y2, col = "var(--linea-forte)") => `<path d="M${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}" fill="none" stroke="${col}" stroke-width="1.6" marker-end="url(#punta)"/>`;
+  const et = (x, y, t, col) => `<text x="${x}" y="${y}" font-size="12" font-weight="700" style="fill:${col};font-family:var(--f-mono);letter-spacing:.08em">${t}</text>`;
+  return `<svg viewBox="0 0 1100 360" role="img" aria-label="Fase A: preparazione dei documenti. Fase B: a ogni domanda, se l'archivio entra nella memoria del modello lo legge tutto, altrimenti si fa il RAG">
     <defs><marker id="punta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="var(--linea-forte)"/></marker></defs>
-    <text x="0" y="14" font-size="10.5" style="fill:var(--timbro);font-family:var(--f-mono);letter-spacing:.15em">UNA VOLTA, QUANDO ARRIVA UN DOCUMENTO</text>
-    <text x="700" y="226" font-size="10.5" style="fill:var(--timbro);font-family:var(--f-mono);letter-spacing:.15em">A OGNI DOMANDA</text>
-    ${box(0, 40, 120, "Cartella", "PDF · Word · testo")}
-    ${box(150, 40, 140, "Estrazione", "testo o OCR")}
-    ${box(320, 40, 140, "Pezzi", "1.000 car. sovrapposti")}
-    ${box(500, 0 + 22, 160, "Indice per parole", "SQLite FTS5 · BM25", "var(--ocra)")}
-    ${box(500, 96, 160, "Vettori", "qwen3-embedding, locale", "var(--verderame)")}
-    ${box(700, 140, 140, "Domanda", "in italiano")}
-    ${box(700, 40, 140, "Ricerca ibrida", "fusione RRF · top 8", "var(--timbro)")}
-    ${box(870, 40, 110, "Modello", "Ollama · LM Studio")}
-    ${box(1000, 40, 100, "Risposta", "citazioni verificate", "var(--timbro)")}
-    ${fr(120, 72, 150, 72)}${fr(290, 72, 320, 72)}${fr(460, 72, 500, 54)}${fr(460, 72, 500, 128)}
-    ${fr(660, 54, 700, 66)}${fr(660, 128, 700, 80)}${fr(770, 140, 770, 106)}${fr(840, 72, 870, 72)}${fr(980, 72, 1000, 72)}
+    <text x="0" y="14" font-size="10.5" style="fill:var(--timbro);font-family:var(--f-mono);letter-spacing:.15em">FASE A · UNA VOLTA, QUANDO ARRIVA UN DOCUMENTO (SEMPRE)</text>
+    ${box(0, 30, 120, "Cartella", "PDF · Word · testo")}
+    ${box(150, 30, 130, "Estrazione", "testo o OCR")}
+    ${box(310, 30, 140, "Pagine e pezzi", "1.000 car. sovrapposti")}
+    ${box(480, 30, 170, "Indice", "parole (FTS5) + vettori", "var(--verderame)")}
+    ${fr(120, 62, 150, 62)}${fr(280, 62, 310, 62)}${fr(450, 62, 480, 62)}
+    <line x1="0" y1="118" x2="1100" y2="118" stroke="var(--linea)" stroke-dasharray="4 5"/>
+    <text x="0" y="146" font-size="10.5" style="fill:var(--timbro);font-family:var(--f-mono);letter-spacing:.15em">FASE B · A OGNI DOMANDA</text>
+    ${box(0, 205, 120, "Domanda", "in italiano")}
+    <g><polygon points="250,180 360,237 250,294 140,237" fill="var(--foglio)" stroke="var(--timbro)" stroke-width="1.6"/>
+      <text x="250" y="226" text-anchor="middle" font-size="13" font-weight="600">L'archivio entra</text>
+      <text x="250" y="243" text-anchor="middle" font-size="13" font-weight="600">nella memoria</text>
+      <text x="250" y="260" text-anchor="middle" font-size="13" font-weight="600">del modello?</text></g>
+    ${fr(120, 237, 140, 237)}
+    ${box(420, 150, 280, "Strada 1 · Tutto l'archivio", "tutte le pagine al modello · niente ricerca", "var(--ok)", 64, "var(--ok-tenue)")}
+    ${box(420, 262, 280, "Strada 2 · RAG", "cerca nell'indice → solo le pagine migliori", "var(--ocra)", 64, "var(--ocra-tenue)")}
+    ${fr(330, 222, 420, 182, "var(--ok)")}${fr(330, 252, 420, 294, "var(--ocra)")}
+    ${et(352, 190, "SÌ", "var(--ok)")}${et(352, 300, "NO", "var(--ocra)")}
+    ${box(760, 205, 150, "Modello", "Spark, Qwen, MiniCPM…")}
+    ${box(950, 205, 150, "Risposta", "citazioni verificate", "var(--timbro)")}
+    ${fr(700, 182, 760, 230)}${fr(700, 294, 760, 244)}${fr(910, 237, 950, 237)}
   </svg>`;
 }
 
 async function sezCome() {
-  C.innerHTML = `<section class="sezione">${testata("III · Per la lezione", "Come funziona, passo per passo",
-    "Dal file sul disco alla risposta con la citazione. Ogni riquadro è un pezzo del programma che si può aprire e guardare.")}
-    <div class="carta filiera">${diagramma()}</div>
+  C.innerHTML = `<section class="sezione lezione">${testata("III · Per la lezione", "Come funziona, passo per passo",
+    "Dal file sul disco alla risposta con la citazione. La cosa da capire subito: a ogni domanda Archivio sceglie tra due strade, e il RAG è solo una delle due.")}
+    <div id="bivio"><p class="piccolo">Guardo cosa succede adesso con il modello scelto<span class="puntini"></span></p></div>
+    <div class="carta filiera" style="margin-top:16px">${diagramma()}</div>
+
+    <h2 class="sotto">Le due strade, con un'immagine</h2>
+    <div class="passi" style="margin-top:0">
+      <div class="carta passo" style="border-left:4px solid var(--ok)"><h3>Strada 1 · Tutto l'archivio</h3>
+        <p>È come dare a un consulente <b>l'intero fascicolo</b> e dirgli: «leggilo e rispondimi». Il modello vede ogni pagina, può collegare
+        un verbale a un ricorso e a un bilancio, e non rischia di perdere la pagina giusta. Funziona solo se il fascicolo <b>sta sulla sua scrivania</b>
+        (la memoria di lavoro, il <i>contesto</i>). Qui <b>non c'è RAG</b>: non si cerca niente, si legge tutto.</p></div>
+      <div class="carta passo" style="border-left:4px solid var(--ocra)"><h3>Strada 2 · RAG</h3>
+        <p>È come avere un <b>archivista</b>: tu fai la domanda, lui va negli scaffali, sceglie le 8 cartelline più pertinenti e le porta al consulente,
+        che legge solo quelle. È la strada obbligata quando l'archivio è troppo grande per la scrivania. Il rischio: se l'archivista sbaglia
+        cartellina, il consulente non vedrà mai la pagina giusta. RAG vuol dire proprio questo: <b>recuperare</b> (Retrieval) per <b>aumentare</b> (Augmented)
+        la <b>risposta</b> (Generation).</p></div>
+      <div class="carta passo"><h3>Come capire cosa ha fatto una risposta</h3>
+        <p>Sotto ogni domanda, nella vista del cliente, c'è un'etichetta: <span class="tag ok">tutto l'archivio · senza RAG</span> oppure
+        <span class="tag neutro">RAG · ricerca</span>, con quante pagine ha letto il modello. Dal menu accanto al modello puoi forzare
+        «Solo la ricerca (RAG)»: stessa domanda, due strade, e in aula si vede la differenza.</p></div>
+      <div class="carta passo"><h3>E i pezzi e i vettori, se non si usano?</h3>
+        <p>Si preparano <b>sempre</b> (Fase A) perché servono appena l'archivio cresce o il modello ha poca memoria. E si usano già oggi in tre posti:
+        il <b>server MCP</b> per Unsloth Studio (lo strumento <span class="mono">cerca_nei_documenti</span> è un RAG puro), il <b>Laboratorio</b>
+        e la strada 2.</p></div>
+    </div>
+
+    <h2 class="sotto">I passi uno per uno</h2>
     <div class="passi">
-      <div class="carta passo"><h3><i>1</i> Estrazione</h3><p>Il testo si legge pagina per pagina. Se una pagina non ha testo selezionabile è una scansione: la si trasforma in immagine e la legge l'OCR (Tesseract, in italiano).</p></div>
-      <div class="carta passo"><h3><i>2</i> Pezzi</h3><p>Ogni pagina si taglia in pezzi di circa 1.000 caratteri, che si sovrappongono di 150 per non spezzare una frase a metà. Ogni pezzo ricorda documento e pagina: è quello che si cita.</p></div>
-      <div class="carta passo"><h3><i>3</i> Parole</h3><p>L'indice per parole trova codici, importi, nomi e numeri d'articolo esatti ("MAG02", "14.3"). Un vocabolario di sinonimi aiuta: chi chiede "cause" trova anche "ricorso" e "tribunale".</p></div>
-      <div class="carta passo"><h3><i>4</i> Significato</h3><p>I vettori trovano i pezzi che dicono la stessa cosa con parole diverse ("disdetta" e "recesso"). Si calcolano sempre in locale, anche quando risponde un modello in cloud.</p></div>
-      <div class="carta passo"><h3><i>5</i> Fusione</h3><p>Le due classifiche si fondono con la Reciprocal Rank Fusion: ogni pezzo prende 1/(60 + posizione) da ciascuna. Vince chi è in alto in tutte e due. Ai modelli arrivano gli 8 migliori.</p></div>
-      <div class="carta passo"><h3><i>6</i> Risposta e verifica</h3><p>Il modello risponde solo con gli estratti e cita [E1], [E2]. L'app controlla che ogni citazione esista davvero, segnala le frasi senza fonte e le versioni dello stesso documento.</p></div>
+      <div class="carta passo"><h3><i>A1</i> Estrazione</h3><p>Il testo si legge pagina per pagina. Se una pagina non ha testo selezionabile è una scansione: la si trasforma in immagine e la legge l'OCR (Tesseract, in italiano). Vale per tutte e due le strade.</p></div>
+      <div class="carta passo"><h3><i>A2</i> Pezzi</h3><p>Ogni pagina si taglia in pezzi di circa 1.000 caratteri, che si sovrappongono di 150 per non spezzare una frase a metà. Ogni pezzo ricorda documento e pagina.</p></div>
+      <div class="carta passo"><h3><i>A3</i> Indice</h3><p>Per ogni pezzo si salvano le parole (per la ricerca per parole) e il vettore (per la ricerca per significato). Tutto in un file, <span class="mono">indice/archivio.db</span>.</p></div>
+      <div class="carta passo"><h3><i>B1</i> Il bivio</h3><p>Archivio chiede al modello quanta memoria di lavoro ha e la confronta con la grandezza dell'archivio, lasciando spazio per la risposta. Se ci sta, strada 1. Se no, strada 2.</p></div>
+      <div class="carta passo"><h3><i>B2</i> Solo nel RAG: la ricerca</h3><p>Ricerca per <b>parole</b> (codici, nomi, "14.3", con sinonimi: "cause" trova "ricorso") più ricerca per <b>significato</b> (vettori), fuse con la Reciprocal Rank Fusion. Le pagine migliori, quante ne stanno, vanno al modello.</p></div>
+      <div class="carta passo"><h3><i>B3</i> Risposta e verifica</h3><p>Le pagine arrivano numerate [E1], [E2]… Il modello risponde citandole; l'app controlla che ogni citazione esista, segnala le frasi senza fonte, le versioni dei documenti e gli ordini nascosti. Uguale nelle due strade.</p></div>
     </div>
 
     <h2 class="sotto">Cosa sono i vettori</h2>
@@ -167,10 +200,28 @@ async function sezCome() {
   </section>`;
   $("#calcola").addEventListener("click", calcolaVettori);
   calcolaVettori();
+  disegnaBivio();
   try {
     const r = await api("/api/laboratorio/cerca", { metodo: "POST", dati: { domanda: A.stato?.domande_esempio?.[0] || "contratto" } });
     $("#regole").innerHTML = `<pre class="prompt">${esc(r.messaggi[0].content)}</pre>`;
   } catch (e) { $("#regole").innerHTML = errore(e); }
+}
+
+async function disegnaBivio() {
+  const box = $("#bivio");
+  try {
+    const n = await api("/api/rag/numeri");
+    const spazio = Math.floor(n.contesto * 0.9) - 900 - 1500;
+    const entra = n.token <= Math.min(spazio, 60000);
+    box.innerHTML = `<div class="carta riquadro-chiave" style="border-left-color:${entra ? "var(--ok)" : "var(--ocra)"}">
+      <div class="num" style="color:${entra ? "var(--ok)" : "var(--ocra)"}">Adesso, con il modello scelto · ${entra ? "senza RAG" : "con RAG"}</div>
+      <p class="grande">${entra
+        ? `L'archivio (<b>${numero(n.token)} token</b>, ${n.pagine} pagine) entra nella memoria di lavoro di <b>${esc(nomeModello(n.modello))}</b> (<b>${numero(n.contesto)} token</b>): Archivio gli fa leggere <b>tutto</b> e <b>non fa il RAG</b>.`
+        : `L'archivio (<b>${numero(n.token)} token</b>) non entra nella memoria di lavoro di <b>${esc(nomeModello(n.modello))}</b> (<b>${numero(n.contesto)} token</b>): Archivio <b>fa il RAG</b> e gli passa solo le pagine migliori.`}</p>
+      <p>Il RAG scatterebbe ${entra ? "invece" : "comunque"} se: l'archivio crescesse oltre circa 60.000 token (qualche centinaio di pagine);
+      si scegliesse un modello con poca memoria, come MiniCPM5 in Ollama (4.096 token); o si scegliesse «Solo la ricerca (RAG)» dal menu.
+      Con 36 pagine leggere tutto è il modo migliore, ed è anche quello che fa Unsloth Studio con una cartella piccola.</p></div>`;
+  } catch (e) { box.innerHTML = errore(e); }
 }
 
 async function calcolaVettori() {
