@@ -10,6 +10,11 @@ from . import config
 ESCLUDI_CHAT = re.compile(r"embed|embedding|rerank|bge-|nomic-bert|whisper", re.I)
 
 
+def stima_token(testo: str) -> int:
+    """Stima prudente: in italiano un token vale circa 3,3 caratteri."""
+    return int(len(testo) / 3.3) + 1
+
+
 def _base(fornitore: str) -> str:
     return config.FORNITORI[fornitore]["url"]
 
@@ -81,7 +86,7 @@ def _errore_leggibile(fornitore, e) -> str:
 
 
 def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: float = 0.1, max_token: int = 8000,
-             ragionamento: bool = True):
+             ragionamento: bool = True, contesto_token: int | None = None):
     """Genera eventi: ('ragionamento', testo) · ('testo', testo) · ('fine', statistiche).
 
     Gestisce sia il ragionamento in un campo separato (LM Studio, Ollama, OpenRouter)
@@ -89,6 +94,9 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
     """
     if fornitore == "openrouter" and not config.chiave_openrouter():
         raise RuntimeError("Manca la chiave OpenRouter: imposta OPENROUTER_API_KEY e riavvia l'app.")
+    if contesto_token:  # non chiedere più token di quanti ne restano nel contesto
+        stima_domanda = stima_token("".join(m["content"] for m in messaggi))
+        max_token = max(256, min(max_token, contesto_token - stima_domanda - 64))
     corpo = {"model": modello, "messages": messaggi, "temperature": temperatura, "max_tokens": max_token,
              "stream": True, "stream_options": {"include_usage": True}}
     if not ragionamento:
@@ -174,25 +182,82 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
         "token_al_secondo": round(token / max(fine - (primo or inizio), 1e-3), 1) if token else None,
         "token_domanda": (uso or {}).get("prompt_tokens"),
         "troncata": motivo == "length",
+        "interrotta": motivo is None,  # il flusso si è chiuso senza dire perché: connessione caduta
         "vuota": caratteri == 0,
     })
 
 
+CONTESTO_LMSTUDIO = 32768   # quanti token chiediamo a LM Studio quando carica un modello (se il modello li regge)
+_contesti: dict = {}
+
+
+def _lms() -> str | None:
+    import shutil
+    from pathlib import Path
+    p = shutil.which("lms") or str(Path.home() / ".lmstudio/bin/lms")
+    return p if Path(p).exists() else None
+
+
+def _lms_json(*args, timeout=300):
+    import subprocess
+    lms = _lms()
+    if not lms:
+        return None
+    r = subprocess.run([lms, *args, "--json"], capture_output=True, text=True, timeout=timeout)
+    try:
+        return json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def _contesto_lmstudio_caricato(modello: str) -> int | None:
+    for m in _lms_json("ps", timeout=30) or []:
+        if modello in (m.get("identifier"), m.get("modelKey"), m.get("path")):
+            return m.get("contextLength")
+    return None
+
+
 def scalda(fornitore: str, modello: str) -> dict:
-    """Carica il modello in memoria prima della prima domanda (in aula non si aspetta)."""
+    """Carica il modello in memoria prima della prima domanda e dice quanto contesto ha davvero.
+
+    Ollama sceglie da solo il contesto (o usa num_ctx del modello: MiniCPM5 in Ollama ha 4.096).
+    LM Studio, se carica un modello "al volo", usa un contesto piccolo: qui lo carichiamo noi
+    con CONTESTO_LMSTUDIO token, così l'archivio ci sta.
+    """
     t = time.perf_counter()
     try:
         if fornitore == "ollama":
-            httpx.post(_base("ollama").removesuffix("/v1") + "/api/generate",
-                       json={"model": modello, "keep_alive": "30m"}, timeout=300).raise_for_status()
+            base = _base("ollama").removesuffix("/v1")
+            httpx.post(base + "/api/generate", json={"model": modello, "keep_alive": "30m"}, timeout=300).raise_for_status()
+            ctx = next((m.get("context_length") for m in httpx.get(base + "/api/ps", timeout=5).json().get("models", [])
+                        if m["name"] == modello), None)
         elif fornitore == "lmstudio":
-            httpx.post(_base("lmstudio") + "/chat/completions", timeout=300, json={
-                "model": modello, "messages": [{"role": "user", "content": "ok"}], "max_tokens": 1}).raise_for_status()
+            ctx = _contesto_lmstudio_caricato(modello)
+            if ctx is None and _lms():
+                _lms_json("server", "start", timeout=60)
+                massimo = next((m.get("maxContextLength") for m in _lms_json("ls", timeout=30) or []
+                                if m.get("modelKey") == modello), None) or CONTESTO_LMSTUDIO
+                _lms_json("load", modello, "-c", str(min(CONTESTO_LMSTUDIO, massimo)), "-y", "--identifier", modello)
+                ctx = _contesto_lmstudio_caricato(modello)
+            if ctx is None:  # senza la riga di comando: lo carica LM Studio al primo messaggio
+                httpx.post(_base("lmstudio") + "/chat/completions", timeout=300, json={
+                    "model": modello, "messages": [{"role": "user", "content": "ok"}], "max_tokens": 1}).raise_for_status()
+                ctx = _contesto_lmstudio_caricato(modello) or 4096
         else:
-            return {"ok": True, "secondi": 0}
-        return {"ok": True, "secondi": round(time.perf_counter() - t, 1)}
+            ctx = next((m.get("contesto") for m in elenco("openrouter").get("modelli", []) if m["id"] == modello), None) or 32768
+        _contesti[(fornitore, modello)] = (ctx, time.time())
+        return {"ok": True, "secondi": round(time.perf_counter() - t, 1), "contesto": ctx}
     except Exception as e:
         return {"ok": False, "errore": _errore_leggibile(fornitore, e)}
+
+
+def contesto(fornitore: str, modello: str) -> int:
+    """Token di contesto disponibili per questo modello (carica il modello se serve). Prudente se non si sa."""
+    noto = _contesti.get((fornitore, modello))
+    if noto and time.time() - noto[1] < 300 and noto[0]:
+        return noto[0]
+    r = scalda(fornitore, modello)
+    return r.get("contesto") or 4096
 
 
 def libera(fornitore: str, modello: str) -> None:

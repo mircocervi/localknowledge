@@ -59,6 +59,8 @@
   .scelta-modello:hover { border-color: var(--inchiostro-2); }
   .scelta-modello .forn { font-weight: 600; }
   .scelta-modello .mod { font-family: var(--f-mono); font-size: 12px; color: var(--inchiostro-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+  .lettura-scelta select { width: auto; padding: 6px 28px 6px 10px; font-size: 13px; border-radius: 99px; background-color: var(--foglio-2); border-color: var(--linea); }
+  .risposta .lettura { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .esempi { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
   .esempi button {
     border: 1px solid var(--linea); background: transparent; border-radius: 99px; padding: 6px 13px; font-size: 13.5px; cursor: pointer; color: var(--inchiostro-2);
@@ -196,6 +198,14 @@
           <span class="pallino" id="pallino-modello"></span><span class="forn" id="forn-nome">—</span><span class="mod" id="mod-nome"></span>
           <span data-icona="freccia_giu"></span>
         </button>
+        <label class="lettura-scelta" title="Cosa legge il modello prima di rispondere">
+          <span class="sr">Cosa legge il modello</span>
+          <select id="modo" class="campo">
+            <option value="auto">Lettura automatica</option>
+            <option value="tutto">Tutto l'archivio</option>
+            <option value="ricerca">Solo la ricerca (RAG)</option>
+          </select>
+        </label>
         <label class="interruttore" title="I modelli che ragionano sono più precisi ma più lenti">
           <input type="checkbox" id="ragionamento"> Ragionamento
         </label>

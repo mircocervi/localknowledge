@@ -2,6 +2,7 @@
 import asyncio
 import contextlib
 import json
+import re
 import subprocess
 import threading
 import time
@@ -121,7 +122,8 @@ def crea_app():
             "indicizzazione": {**lavoratore.stato, "in_coda": lavoratore.coda.qsize()},
             "registro": [r for r in list(lavoratore.registro) if r["t"] > dopo][-200:],
             "ora": time.time(),
-            "scelta": {"fornitore": imp["fornitore"], "modello": imp["modello"], "ragionamento": imp.get("ragionamento", False)},
+            "scelta": {"fornitore": imp["fornitore"], "modello": imp["modello"], "ragionamento": imp.get("ragionamento", True),
+                       "modo": imp.get("modo", "auto")},
             "fornitori": {k: {"nome": v["nome"], "locale": v["locale"], "url": v["url"]} for k, v in config.FORNITORI.items()},
             "openrouter_chiave": bool(config.chiave_openrouter()),
             "moduli": moduli.elenco(),
@@ -150,6 +152,8 @@ def crea_app():
             campi["modello"] = d["modello"]
         if "ragionamento" in d:
             campi["ragionamento"] = bool(d["ragionamento"])
+        if d.get("modo") in ("auto", "tutto", "ricerca"):
+            campi["modo"] = d["modo"]
         return config.aggiorna(**campi) and {"ok": True}
 
     @app.post("/api/scalda")
@@ -293,42 +297,55 @@ def crea_app():
         imp = config.leggi()
         fornitore = d.get("fornitore") or imp["fornitore"]
         modello = d.get("modello") or imp["modello"]
-        ragionamento = bool(d.get("ragionamento", imp.get("ragionamento", False)))
+        ragionamento = bool(d.get("ragionamento", imp.get("ragionamento", True)))
+        modo = d.get("modo") if d.get("modo") in ("auto", "tutto", "ricerca") else imp.get("modo", "auto")
         cartelle = d.get("cartelle")
         if fornitore not in config.FORNITORI:
             raise HTTPException(400, "fornitore sconosciuto")
 
         def flusso():
+            yield _sse("fase", {"t": "Preparo il modello e i documenti"})
             try:
-                r = archivio.cerca(domanda, cartelle)
+                r = archivio.prepara(domanda, fornitore, modello, cartelle, modo, ragionamento)
             except Exception as e:
-                yield _sse("errore", {"messaggio": f"Ricerca non riuscita: {e}"})
+                yield _sse("errore", {"messaggio": f"Preparazione non riuscita: {e}"})
                 return
-            estratti = r["estratti"]
-            yield _sse("estratti", {
-                "estratti": [e.dict() for e in estratti], "versioni": r["versioni"], "tempi": r["tempi"],
-                "avviso": r["avviso"], "fornitore": fornitore, "modello": modello,
-                "locale": config.FORNITORI[fornitore]["locale"]})
-            if not estratti:
-                testo = risposta.NON_PRESENTE
-                yield _sse("testo", {"t": testo})
-                yield _sse("fine", {"statistiche": {"secondi": 0, "primo_token": 0, "nessun_estratto": True},
-                                    "verifica": risposta.verifica(testo, [])})
-                return
-            parti = []
-            try:
-                for tipo, dato in modelli.conversa(fornitore, modello, archivio.messaggi(domanda, r),
-                                                   ragionamento=ragionamento):
-                    if tipo == "testo":
-                        parti.append(dato)
-                        yield _sse("testo", {"t": dato})
-                    elif tipo == "ragionamento":
-                        yield _sse("ragionamento", {"t": dato})
-                    else:
-                        testo = "".join(parti).strip()
-                        yield _sse("fine", {"statistiche": dato, "verifica": risposta.verifica(testo, estratti)})
-            except Exception as e:
-                yield _sse("errore", {"messaggio": str(e)})
+            for tentativo in range(2):
+                estratti = r["estratti"]
+                yield _sse("estratti", {
+                    "estratti": [e.dict() for e in estratti], "versioni": r["versioni"], "tempi": r["tempi"],
+                    "avviso": r["avviso"], "fornitore": fornitore, "modello": modello, "modo": r["modo"],
+                    "contesto": r.get("contesto"), "token_documenti": r.get("token_documenti"),
+                    "documenti": r.get("documenti"), "locale": config.FORNITORI[fornitore]["locale"]})
+                if not estratti:
+                    testo = risposta.NON_PRESENTE
+                    yield _sse("testo", {"t": testo})
+                    yield _sse("fine", {"statistiche": {"secondi": 0, "primo_token": 0, "nessun_estratto": True},
+                                        "verifica": risposta.verifica(testo, [])})
+                    return
+                parti = []
+                try:
+                    for tipo, dato in modelli.conversa(fornitore, modello, archivio.messaggi(domanda, r),
+                                                       ragionamento=ragionamento, contesto_token=r.get("contesto")):
+                        if tipo == "testo":
+                            parti.append(dato)
+                            yield _sse("testo", {"t": dato})
+                        elif tipo == "ragionamento":
+                            yield _sse("ragionamento", {"t": dato})
+                        else:
+                            testo = "".join(parti).strip()
+                            yield _sse("fine", {"statistiche": dato, "verifica": risposta.verifica(testo, estratti)})
+                    return
+                except Exception as e:
+                    troppo = re.search(r"context|contesto|exceed", str(e), re.I)
+                    if tentativo == 0 and troppo and not parti:
+                        # il modello ha meno contesto del previsto: si riprova con la ricerca e meno pagine
+                        yield _sse("fase", {"t": "Il contesto del modello è più piccolo del previsto: riprovo con la ricerca"})
+                        modelli._contesti[(fornitore, modello)] = (max(2048, (r.get("contesto") or 4096) // 2), time.time())
+                        r = archivio.prepara(domanda, fornitore, modello, cartelle, "ricerca", ragionamento)
+                        continue
+                    yield _sse("errore", {"messaggio": str(e)})
+                    return
 
         return StreamingResponse(flusso(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
@@ -386,8 +403,11 @@ def crea_app():
         ammessi = {"ocr", "ricerca", "pezzi", "sinonimi", "domande_esempio", "mcp_esterni"}
         campi = {k: v for k, v in d.items() if k in ammessi}
         if "ricerca" in campi:
-            campi["ricerca"] = {"estratti": max(1, min(int(campi["ricerca"].get("estratti", 8)), 20)),
-                                "candidati": max(10, min(int(campi["ricerca"].get("candidati", 40)), 200))}
+            ric = campi["ricerca"]
+            campi["ricerca"] = {"estratti": max(1, min(int(ric.get("estratti", 8)), 30)),
+                                "candidati": max(10, min(int(ric.get("candidati", 40)), 200)),
+                                "limite_tutto": max(2000, min(int(ric.get("limite_tutto", 60000)), 900000)),
+                                "limite_ricerca": max(1500, min(int(ric.get("limite_ricerca", 14000)), 200000))}
         if "pezzi" in campi:
             campi["pezzi"] = {"dimensione": max(300, min(int(campi["pezzi"].get("dimensione", 1000)), 4000)),
                               "sovrapposizione": max(0, min(int(campi["pezzi"].get("sovrapposizione", 150)), 1000))}
@@ -459,14 +479,15 @@ def crea_app():
         if not bersagli:
             raise HTTPException(400, "Scegli almeno un modello.")
         prova.update(in_corso=True, fatti=0, totale=len(bersagli) * len(prova_finale.PROVE), risultati=[],
-                     ragionamento=bool(d.get("ragionamento")), attuale=None)
+                     ragionamento=bool(d.get("ragionamento")), attuale=None,
+                     modo=d.get("modo") if d.get("modo") in ("auto", "tutto", "ricerca") else "auto")
 
         def avanti(i, n, b, p):
             prova.update(fatti=i, totale=n, attuale=b and {**b, "prova": p["id"]})
 
         def lavora():
             try:
-                prova["risultati"] = prova_finale.esegui(archivio, bersagli, prova["ragionamento"], avanti)
+                prova["risultati"] = prova_finale.esegui(archivio, bersagli, prova["ragionamento"], avanti, prova["modo"])
             except Exception as e:
                 lavoratore.log(f"Banco prova interrotto: {e}", "errore")
             finally:

@@ -60,7 +60,7 @@ def modelli_accesi(filtro: list[str] | None = None) -> list[dict]:
     return out
 
 
-def esegui(archivio, bersagli: list[dict], ragionamento: bool = False, avanzamento=None) -> list[dict]:
+def esegui(archivio, bersagli: list[dict], ragionamento: bool = False, avanzamento=None, modo: str = "auto") -> list[dict]:
     risultati = []
     nome = time.strftime("prova_%Y-%m-%d_%H%M%S.json")
     totale = len(bersagli) * len(PROVE)
@@ -69,12 +69,14 @@ def esegui(archivio, bersagli: list[dict], ragionamento: bool = False, avanzamen
         for p in PROVE:
             if avanzamento:
                 avanzamento(fatti, totale, b, p)
-            r = archivio.cerca(p["domanda"])
             voce = {"fornitore": b["fornitore"], "modello": b["modello"], "prova": p["id"], "domanda": p["domanda"],
                     "attesa": p["attesa"]}
             try:
+                r = archivio.prepara(p["domanda"], b["fornitore"], b["modello"], None, modo, ragionamento)
+                voce.update(modo=r["modo"], contesto=r.get("contesto"), token_documenti=r.get("token_documenti"))
                 testo, ragion, stat = modelli.risposta_completa(
-                    b["fornitore"], b["modello"], archivio.messaggi(p["domanda"], r), ragionamento=ragionamento)
+                    b["fornitore"], b["modello"], archivio.messaggi(p["domanda"], r), ragionamento=ragionamento,
+                    contesto_token=r.get("contesto"))
                 ver = risposta.verifica(testo, r["estratti"])
                 voce.update(risposta=testo, secondi=stat.get("secondi"), token=stat.get("token"),
                             fonti=ver["fonti"], **valuta(p, testo, ver))
@@ -113,6 +115,7 @@ def main() -> int:
     p.add_argument("--prova-finale", action="store_true")
     p.add_argument("--solo", help="filtra i modelli per nome, separati da virgola")
     p.add_argument("--ragionamento", action="store_true", help="lascia ragionare i modelli (più lento)")
+    p.add_argument("--modo", default="auto", choices=["auto", "tutto", "ricerca"])
     a, _ = p.parse_known_args()
     bersagli = modelli_accesi(a.solo.split(",") if a.solo else None)
     if not bersagli:
@@ -124,12 +127,12 @@ def main() -> int:
         if b:
             print(f"[{i + 1}/{n}] {b['fornitore']} · {b['modello']} · {pr['id']}", file=sys.stderr, flush=True)
 
-    ris = esegui(archivio, bersagli, a.ragionamento, avanti)
+    ris = esegui(archivio, bersagli, a.ragionamento, avanti, a.modo)
     print()
     for r in ris:
         segno = "OK " if r["ok"] else "NO "
         fonti = ", ".join(f"{f['nome']} p.{f['pagina']}" for f in r.get("fonti", [])) or "—"
-        print(f"{segno} {r['fornitore']:<9} {r['modello'][:42]:<42} {r['prova']:<9} "
+        print(f"{segno} {r['fornitore']:<9} {r['modello'][:42]:<42} {r['prova']:<9} {r.get('modo', ''):<8}"
               f"contenuto={'sì' if r['contenuto'] else 'no'} citazione={'sì' if r['citazione'] else 'no'} "
               f"{r.get('secondi') or 0:>5.1f}s  [{fonti}]" + (f"  ERRORE {r['errore']}" if r.get("errore") else ""))
     return 0

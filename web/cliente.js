@@ -24,6 +24,7 @@ async function caricaStato() {
   if (primo) {
     S.scelta = { ...st.scelta };
     $("#ragionamento").checked = !!S.scelta.ragionamento;
+    $("#modo").value = S.scelta.modo || "auto";
     disegnaScelta();
     disegnaEsempi(st.domande_esempio);
     disegnaSchede(st.moduli);
@@ -250,6 +251,10 @@ $("#lista-modelli").addEventListener("click", async e => {
   apriPannello(false);
   scalda();
 });
+$("#modo").addEventListener("change", e => {
+  S.scelta.modo = e.target.value;
+  api("/api/scelta", { metodo: "POST", dati: { modo: S.scelta.modo } });
+});
 $("#ragionamento").addEventListener("change", e => {
   S.scelta.ragionamento = e.target.checked;
   api("/api/scelta", { metodo: "POST", dati: { ragionamento: S.scelta.ragionamento } });
@@ -298,6 +303,8 @@ async function chiedi() {
   if (!S.scelta.modello) { apriPannello(true); return; }
   S.occupato = true;
   $("#invia").disabled = true;
+  $("#domanda").value = "";
+  $("#domanda").style.height = "auto";
   $("#vuoto")?.remove();
   const card = document.createElement("article");
   card.className = "carta risposta";
@@ -307,7 +314,8 @@ async function chiedi() {
     <h3 class="chiesta">${esc(domanda)}</h3>
     <div class="chi"><span class="tag ${locale ? "ok" : "no"}">${locale ? "locale" : "esterno"}</span> ${esc(nomeF)} · <span class="mono" title="${esc(S.scelta.modello)}">${esc(nomeModello(S.scelta.modello))}</span>
       ${S.scelta.ragionamento ? `<span class="tag neutro">${icona("cervello")} ragiona</span>` : ""}</div>
-    <div class="testo cursore"><p class="piccolo">Cerco nei documenti<span class="puntini"></span></p></div>
+    <div class="lettura piccolo nascosto"></div>
+    <div class="testo cursore"><p class="piccolo">Preparo il modello e i documenti<span class="puntini"></span></p></div>
     <div class="verifica"></div><div class="blocco-versioni"></div>
     <details class="ragion nascosto"><summary>${icona("cervello")} Ragionamento del modello</summary><pre></pre></details>
     <div class="tempi"></div>
@@ -339,12 +347,16 @@ async function chiedi() {
         const blocco = buf.slice(0, i); buf = buf.slice(i + 2);
         const ev = (blocco.match(/^event: (.*)$/m) || [])[1];
         const dati = JSON.parse((blocco.match(/^data: (.*)$/m) || [])[1] || "{}");
-        if (ev === "estratti") {
+        if (ev === "fase") {
+          if (!testo) elTesto.innerHTML = `<p class="piccolo">${esc(dati.t)}<span class="puntini"></span></p>`;
+        } else if (ev === "estratti") {
           estratti = dati.estratti; tempiRicerca = dati.tempi;
-          disegnaEstratti(card, estratti, domanda);
+          card._modo = dati.modo;
+          disegnaLettura(card, dati);
+          disegnaEstratti(card, estratti, domanda, dati.modo === "tutto" ? [] : null);
           card._versioni = dati.versioni;
           if (dati.avviso) $(".verifica", card).innerHTML = `<div class="nota attenzione">${icona("avviso")}<div>${esc(dati.avviso)}</div></div>`;
-          elTesto.innerHTML = `<p class="piccolo">Il modello legge ${estratti.length} estratti<span class="puntini"></span></p>`;
+          elTesto.innerHTML = `<p class="piccolo">${dati.modo === "tutto" ? `Il modello legge tutto l'archivio: ${estratti.length} pagine` : `Il modello legge ${estratti.length} pagine trovate dalla ricerca`}<span class="puntini"></span></p>`;
           setTimeout(() => { if (!testo && !ragion && card.isConnected) elTesto.insertAdjacentHTML("beforeend",
             `<p class="piccolo">Se il modello non era in memoria, il primo avvio richiede qualche secondo per caricarlo.</p>`); }, 5000);
         } else if (ev === "ragionamento") {
@@ -394,15 +406,17 @@ function concludi(card, testo, estratti, dati, tempiRicerca) {
       <div class="piccolo" style="margin-top:4px">L'app le ha tolte dagli estratti prima che arrivassero al modello: sono dati, non istruzioni.</div></div></div>`);
   }
   if (st.troncata && testo) chip.push(`<span class="tag ocr">risposta interrotta (limite token)</span>`);
+  if (st.interrotta) chip.push(`<span class="tag no" title="Il server del modello ha chiuso la connessione prima della fine">${icona("avviso")} risposta interrotta: riprova</span>`);
   $(".verifica", card).insertAdjacentHTML("beforeend", chip.join(""));
+  if (card._modo === "tutto") disegnaEstratti(card, estratti, $(".chiesta", card).textContent, v.citati);
   $$(".schedina", card).forEach(s => s.classList.toggle("citata", v.citati.includes(+s.dataset.n)));
-  disegnaVersioni(card, card._versioni, v.citati.map(n => estratti[n - 1]?.nome));
+  disegnaVersioni(card, card._versioni, v.citati.map(n => estratti[n - 1]?.nome), card._modo === "tutto");
   const tr = tempiRicerca || {};
   $(".tempi", card).innerHTML = `
     <span>${icona("orologio")} Modello <b>${secondi(st.secondi)}</b></span>
     <span>Primo token <b>${secondi(st.primo_token)}</b></span>
     ${st.token ? `<span><b>${numero(st.token)}</b> token${st.token_al_secondo ? ` · <b>${String(st.token_al_secondo).replace(".", ",")}</b>/s` : ""}</span>` : ""}
-    <span>${icona("lente")} Ricerca <b>${(tr.vettore_domanda_ms || 0) + (tr.ricerca_ms || 0)} ms</b></span>`;
+    ${card._modo === "tutto" ? "" : `<span>${icona("lente")} Ricerca <b>${(tr.vettore_domanda_ms || 0) + (tr.ricerca_ms || 0)} ms</b></span>`}`;
   // passando sopra una citazione si illumina la sua scheda
   $$(".cit[data-e]", card).forEach(c => {
     const s = $(`.schedina[data-n="${c.dataset.e}"]`, card);
@@ -411,27 +425,56 @@ function concludi(card, testo, estratti, dati, tempiRicerca) {
   });
 }
 
-function disegnaEstratti(card, estratti, domanda) {
+function disegnaLettura(card, d) {
+  const el = $(".lettura", card);
+  el.classList.remove("nascosto");
+  const tok = d.token_documenti ? `circa ${numero(d.token_documenti)} token` : "";
+  const ctx = d.contesto ? `memoria di lavoro del modello ${numero(d.contesto)} token` : "";
+  el.innerHTML = d.modo === "tutto"
+    ? `<span class="tag ok" title="L'archivio entra tutto nel contesto del modello: niente ricerca, legge ogni pagina">${icona("doc")} tutto l'archivio</span>
+       ${d.estratti.length} pagine di ${d.documenti} documenti · ${tok} · ${ctx}`
+    : `<span class="tag neutro" title="Ricerca ibrida (RAG): solo le pagine più pertinenti arrivano al modello">${icona("lente")} ricerca · RAG</span>
+       ${d.estratti.length} pagine di ${d.documenti} documenti · ${tok} · ${ctx}`;
+}
+
+function disegnaEstratti(card, estratti, domanda, soloQuesti = null) {
+  // soloQuesti: in "tutto l'archivio" si mostrano le pagine citate; le altre con un clic
   const t = $(".estratti-titolo", card);
-  t.classList.remove("nascosto");
-  t.textContent = `Estratti usati · ${estratti.length}`;
-  $(".estratti", card).innerHTML = estratti.map((e, i) => `
-    <div class="schedina" data-n="${i + 1}">
-      <div class="testa"><span class="n">E${i + 1}</span>
+  const mostra = soloQuesti === null ? estratti.map((_, i) => i + 1) : soloQuesti;
+  const altre = estratti.length - mostra.length;
+  if (soloQuesti !== null && !mostra.length) { t.classList.add("nascosto"); $(".estratti", card).innerHTML = ""; }
+  else {
+    t.classList.remove("nascosto");
+    t.textContent = soloQuesti === null ? `Pagine lette dal modello · ${estratti.length}` : `Pagine citate · ${mostra.length} su ${estratti.length} lette`;
+  }
+  $(".estratti", card).innerHTML = mostra.map(n => {
+    const e = estratti[n - 1];
+    if (!e) return "";
+    return `
+    <div class="schedina" data-n="${n}">
+      <div class="testa"><span class="n">E${n}</span>
         <a class="doc" href="${linkDocumento(e.doc_id, e.pagina, e.nome)}" target="_blank" rel="noopener" title="Apri ${esc(e.nome)} alla ${e.unita} ${e.pagina}">${esc(e.nome)}</a>
         <span class="pag">${unitaBreve(e.unita)} ${e.pagina}</span>${e.ocr ? '<span class="tag ocr" title="Pagina scansionata, letta con l\'OCR">ocr</span>' : ""}</div>
       <div class="brano">${evidenzia(e.testo, domanda)}</div>
-      <div class="ranghi" title="Posizione nelle due classifiche della ricerca ibrida">
-        <i class="rp">parole ${e.rango_parole ? "#" + e.rango_parole : "—"}</i><i class="rs">significato ${e.rango_significato ? "#" + e.rango_significato : "—"}</i></div>
-    </div>`).join("");
+      ${e.rango_parole || e.rango_significato ? `<div class="ranghi" title="Posizione nelle due classifiche della ricerca ibrida">
+        <i class="rp">parole ${e.rango_parole ? "#" + e.rango_parole : "—"}</i><i class="rs">significato ${e.rango_significato ? "#" + e.rango_significato : "—"}</i></div>` : ""}
+    </div>`;
+  }).join("") + (soloQuesti !== null && altre > 0
+    ? `<button class="btn fantasma piccolo-btn" data-tutte style="justify-self:start">${icona("doc")} Mostra tutte le ${estratti.length} pagine lette</button>` : "");
   $$(".schedina .brano", card).forEach(b => b.addEventListener("click", () => b.parentElement.classList.toggle("aperta")));
+  const bt = $("[data-tutte]", card);
+  if (bt) bt.onclick = () => {
+    const citate = soloQuesti;
+    disegnaEstratti(card, estratti, domanda, null);
+    $$(".schedina", card).forEach(s => s.classList.toggle("citata", citate.includes(+s.dataset.n)));
+  };
 }
 
-function disegnaVersioni(card, avvisi, citati) {
+function disegnaVersioni(card, avvisi, citati, tutto = false) {
   const utili = (avvisi || []).filter(a => a.tipo !== "solo_recente");
   const nomiCitati = new Set(citati || []);
   const toccaCitati = a => a.versioni.some(v => nomiCitati.has(v.nome));
-  const forti = utili.filter(toccaCitati), deboli = utili.filter(a => !toccaCitati(a));
+  const forti = utili.filter(toccaCitati), deboli = tutto ? [] : utili.filter(a => !toccaCitati(a));
   const blocco = a => {
     const titolo = a.tipo === "manca_recente" ? "Attenzione: esiste una versione più recente" : "Più versioni dello stesso documento";
     return `<div class="versioni">

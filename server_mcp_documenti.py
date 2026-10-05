@@ -15,7 +15,7 @@ Non serve se Archivio è già acceso: lo stesso MCP è anche su http://127.0.0.1
 In Unsloth Studio: Add custom MCP, URL http://127.0.0.1:4101/mcp, autenticazione nessuna
 (o Bearer con il token, se l'hai impostato).
 
-Tre strumenti: descrivi_archivio, cerca_nei_documenti, leggi_pagina.
+Quattro strumenti: descrivi_archivio, cerca_nei_documenti, leggi_pagina, leggi_documento.
 L'indice si costruisce dall'app (uv run archivio.py): questo server lo legge soltanto.
 I vettori della domanda si calcolano in locale con Ollama (qwen3-embedding:0.6b); se Ollama è spento
 la ricerca continua per sole parole.

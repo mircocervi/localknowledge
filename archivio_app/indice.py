@@ -391,6 +391,11 @@ class Indice:
             return [dict(r) for r in self.db.execute(
                 "SELECT numero, testo, ocr FROM pagine WHERE doc_id=? ORDER BY numero", (doc_id,))]
 
+    def testo_pagina(self, doc_id, numero) -> str | None:
+        with self.lock:
+            r = self.db.execute("SELECT testo FROM pagine WHERE doc_id=? AND numero=?", (doc_id, numero)).fetchone()
+        return r["testo"] if r else None
+
     def pezzi_di(self, doc_id):
         with self.lock:
             righe = self.db.execute(

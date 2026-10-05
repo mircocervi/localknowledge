@@ -44,10 +44,11 @@ PREDEFINITE = {
     "cartelle": [],
     "fornitore": "ollama",
     "modello": "hf.co/XHToken/Spark-X2.5-4B-GGUF:Q8_0",
-    "ragionamento": False,
+    "ragionamento": True,
+    "modo": "auto",  # auto: tutto l'archivio se entra nel contesto del modello, altrimenti ricerca (RAG)
     "embedding": {"url": "http://localhost:11434", "modello": "qwen3-embedding:0.6b"},
     "ocr": {"motore": "tesseract", "lingua": "ita", "fornitore": "lmstudio", "modello": ""},
-    "ricerca": {"estratti": 8, "candidati": 40},
+    "ricerca": {"estratti": 8, "candidati": 40, "limite_tutto": 60000, "limite_ricerca": 14000},
     "pezzi": {"dimensione": 1000, "sovrapposizione": 150},
     "moduli": {"bi": False},
     "domande_esempio": DOMANDE_ESEMPIO,
