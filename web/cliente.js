@@ -410,8 +410,8 @@ async function chiedi() {
           card._versioni = dati.versioni;
           if (dati.avviso) $(".verifica", card).innerHTML = `<div class="nota attenzione">${icona("avviso")}<div>${esc(dati.avviso)}</div></div>`;
           elTesto.innerHTML = `<p class="piccolo">${dati.modo === "tutto" ? `Il modello legge tutto l'archivio: ${estratti.length} pagine` : `Il modello legge ${estratti.length} pagine trovate dalla ricerca`}<span class="puntini"></span></p>`;
-          setTimeout(() => { if (!testo && !ragion && card.isConnected) elTesto.insertAdjacentHTML("beforeend",
-            `<p class="piccolo">Se il modello non era in memoria, il primo avvio richiede qualche secondo per caricarlo.</p>`); }, 5000);
+          setTimeout(() => { if (!testo && !ragion && card.isConnected && !$(".nota-avvio", card)) elTesto.insertAdjacentHTML("beforeend",
+            `<p class="piccolo nota-avvio">Se il modello non era in memoria, il primo avvio richiede qualche secondo per caricarlo.</p>`); }, 5000);
         } else if (ev === "ragionamento") {
           ragion += dati.t;
           const d = $("details.ragion", card); d.classList.remove("nascosto");

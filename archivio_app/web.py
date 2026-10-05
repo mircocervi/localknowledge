@@ -360,7 +360,7 @@ def crea_app():
                             yield _sse("fine", {"statistiche": dato, "verifica": risposta.verifica(testo, estratti)})
                     return
                 except Exception as e:
-                    troppo = re.search(r"context|contesto|exceed", str(e), re.I)
+                    troppo = modelli.e_contesto_pieno(str(e))
                     if tentativo == 0 and troppo and not parti:
                         # il modello ha meno contesto del previsto: si riprova con la ricerca e meno pagine
                         yield _sse("fase", {"t": "Il contesto del modello è più piccolo del previsto: riprovo con la ricerca"})

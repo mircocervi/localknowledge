@@ -209,3 +209,10 @@ def test_istruzioni_nascoste_tolte_prima_del_modello():
     assert v["istruzioni_ignorate"][0]["nome"] == "99_trappola.pdf"
     # un contratto normale non viene toccato
     assert risposta.istruzioni_nascoste("Il Distributore si impegna a comunicare ogni trattativa entro dieci giorni.") == []
+
+
+def test_riconosce_solo_i_veri_errori_di_contesto():
+    from archivio_app import modelli
+    assert modelli.e_contesto_pieno("request (4181 tokens) exceeds the available context size (4096 tokens)")
+    assert modelli.e_contesto_pieno("This model's maximum context length is 32768 tokens")
+    assert not modelli.e_contesto_pieno("'Response' object does not support the context manager protocol")

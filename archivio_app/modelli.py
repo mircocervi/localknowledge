@@ -1,4 +1,5 @@
 """I modelli che rispondono. Per tutti la stessa API compatibile OpenAI: cambia solo indirizzo e modello."""
+import contextlib
 import json
 import re
 import time
@@ -22,6 +23,14 @@ def ferma_tutto() -> int:
 
 
 ESCLUDI_CHAT = re.compile(r"embed|embedding|rerank|bge-|nomic-bert|whisper", re.I)
+
+
+CONTESTO_PIENO = re.compile(r"context (?:length|size|window)|maximum context|exceeds? the|too many tokens|contesto", re.I)
+
+
+def e_contesto_pieno(errore: str) -> bool:
+    """L'errore dice che il messaggio non entra nel contesto del modello? (non basta la parola 'context')"""
+    return bool(CONTESTO_PIENO.search(errore))
 
 
 def stima_token(testo: str) -> int:
@@ -128,8 +137,9 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
     caratteri = 0
     motivo = None
     try:
+        cliente = httpx.Client(timeout=httpx.Timeout(600, connect=10))
         for tentativo in range(3):  # 429 = troppe richieste (piano gratuito): si aspetta e si riprova
-            r = httpx.Client(timeout=httpx.Timeout(600, connect=10)).send(
+            r = cliente.send(
                 httpx.Request("POST", _base(fornitore) + "/chat/completions", json=corpo,
                               headers=_intestazioni(fornitore)), stream=True)
             if r.status_code == 429 and tentativo < 2 and not freno.is_set():
@@ -137,7 +147,7 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
                 time.sleep(6 * (tentativo + 1))
                 continue
             break
-        with r:
+        with contextlib.closing(cliente), contextlib.closing(r):
             if r.status_code == 429:
                 r.read()
                 raise RuntimeError(f"{config.FORNITORI[fornitore]['nome']}: troppe richieste (limite del piano gratuito). "
