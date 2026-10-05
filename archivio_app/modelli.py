@@ -195,6 +195,23 @@ def scalda(fornitore: str, modello: str) -> dict:
         return {"ok": False, "errore": _errore_leggibile(fornitore, e)}
 
 
+def libera(fornitore: str, modello: str) -> None:
+    """Toglie il modello dalla memoria (il banco prova ne carica tanti, uno dopo l'altro)."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+    try:
+        if fornitore == "ollama":
+            httpx.post(_base("ollama").removesuffix("/v1") + "/api/generate",
+                       json={"model": modello, "keep_alive": 0}, timeout=60)
+        elif fornitore == "lmstudio":
+            lms = shutil.which("lms") or str(Path.home() / ".lmstudio/bin/lms")
+            if Path(lms).exists():
+                subprocess.run([lms, "unload", modello], capture_output=True, timeout=60)
+    except Exception:
+        pass
+
+
 def risposta_completa(fornitore, modello, messaggi, **kw) -> tuple[str, str, dict]:
     testo, ragion, stat = [], [], {}
     for tipo, dato in conversa(fornitore, modello, messaggi, **kw):

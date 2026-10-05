@@ -62,6 +62,7 @@ def modelli_accesi(filtro: list[str] | None = None) -> list[dict]:
 
 def esegui(archivio, bersagli: list[dict], ragionamento: bool = False, avanzamento=None) -> list[dict]:
     risultati = []
+    nome = time.strftime("prova_%Y-%m-%d_%H%M%S.json")
     totale = len(bersagli) * len(PROVE)
     fatti = 0
     for b in bersagli:
@@ -81,16 +82,17 @@ def esegui(archivio, bersagli: list[dict], ragionamento: bool = False, avanzamen
                 voce.update(risposta="", errore=str(e)[:300], ok=False, contenuto=False, citazione=False, fonti=[])
             risultati.append(voce)
             fatti += 1
+            salva(risultati, ragionamento, nome)  # dopo ogni risposta: se si interrompe, il lavoro resta
+        if len(bersagli) > 1:
+            modelli.libera(b["fornitore"], b["modello"])
     if avanzamento:
         avanzamento(fatti, totale, None, None)
-    salva(risultati, ragionamento)
     return risultati
 
 
-def salva(risultati, ragionamento):
+def salva(risultati, ragionamento, nome):
     d = config.DIR_INDICE / "prove"
     d.mkdir(parents=True, exist_ok=True)
-    nome = time.strftime("prova_%Y-%m-%d_%H%M%S.json")
     (d / nome).write_text(json.dumps({"quando": time.time(), "ragionamento": ragionamento, "risultati": risultati},
                                      ensure_ascii=False, indent=2), encoding="utf-8")
 
