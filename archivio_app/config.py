@@ -44,7 +44,7 @@ PREDEFINITE = {
     "cartelle": [],
     "fornitore": "ollama",
     "modello": "hf.co/XHToken/Spark-X2.5-4B-GGUF:Q8_0",
-    "ragionamento": True,
+    "ragionamento": False,  # con tutto l'archivio Spark fa 3/3 anche senza ragionare, ed è molto più veloce
     "preferiti": {  # l'ultimo modello scelto per ogni fornitore: cambiando scheda si riparte da lì
         "ollama": "hf.co/XHToken/Spark-X2.5-4B-GGUF:Q8_0",
         "lmstudio": "minicpm5-2b",

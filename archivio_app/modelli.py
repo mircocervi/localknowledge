@@ -128,8 +128,20 @@ def conversa(fornitore: str, modello: str, messaggi: list[dict], temperatura: fl
     caratteri = 0
     motivo = None
     try:
-        with httpx.stream("POST", _base(fornitore) + "/chat/completions", json=corpo,
-                          headers=_intestazioni(fornitore), timeout=httpx.Timeout(600, connect=10)) as r:
+        for tentativo in range(3):  # 429 = troppe richieste (piano gratuito): si aspetta e si riprova
+            r = httpx.Client(timeout=httpx.Timeout(600, connect=10)).send(
+                httpx.Request("POST", _base(fornitore) + "/chat/completions", json=corpo,
+                              headers=_intestazioni(fornitore)), stream=True)
+            if r.status_code == 429 and tentativo < 2 and not freno.is_set():
+                r.close()
+                time.sleep(6 * (tentativo + 1))
+                continue
+            break
+        with r:
+            if r.status_code == 429:
+                r.read()
+                raise RuntimeError(f"{config.FORNITORI[fornitore]['nome']}: troppe richieste (limite del piano gratuito). "
+                                   "Aspetta un minuto o scegli un modello locale.")
             if r.status_code >= 400:
                 r.read()
                 raise RuntimeError(f"{config.FORNITORI[fornitore]['nome']} ha risposto {r.status_code}: {r.text[:300]}")

@@ -204,14 +204,14 @@
         </button>
         <label class="lettura-scelta" title="Cosa legge il modello prima di rispondere">
           <span class="sr">Cosa legge il modello</span>
-          <select id="modo" class="campo">
+          <select id="modo" class="campo" autocomplete="off">
             <option value="auto">Lettura automatica</option>
             <option value="tutto">Tutto l'archivio</option>
             <option value="ricerca">Solo la ricerca (RAG)</option>
           </select>
         </label>
         <label class="interruttore" title="I modelli che ragionano sono più precisi ma più lenti">
-          <input type="checkbox" id="ragionamento"> Ragionamento
+          <input type="checkbox" id="ragionamento" autocomplete="off"> Ragionamento
         </label>
         <div class="spazio"></div>
         <span class="piccolo nascosto" id="scorciatoia">⌘ Invio</span>
