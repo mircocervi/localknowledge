@@ -16,13 +16,18 @@ Si apre `http://127.0.0.1:4100`. L'area admin è su `/admin`.
    - per parole (SQLite FTS5, BM25, con un vocabolario di sinonimi) trova codici, importi, nomi e articoli;
    - per significato (vettori `qwen3-embedding:0.6b`, sempre calcolati in locale con Ollama) trova lo stesso concetto detto con altre parole;
    - le due classifiche si fondono con la Reciprocal Rank Fusion.
-4. **Risponde.** Il modello cita gli estratti `[E1]`, `[E2]`, che diventano etichette cliccabili con documento e pagina. Se l'informazione manca, risponde «Non presente nei documenti».
-5. **Controlla.** Dopo la risposta l'app verifica che:
+4. **Sceglie cosa far leggere al modello.** Se l'archivio entra nella memoria di lavoro (il contesto) del modello, gli fa leggere **tutto l'archivio**, pagina per pagina. È il caso della data-room di Crinale con Spark. Se non entra, usa la **ricerca (RAG)** e passa le pagine intere più pertinenti, quante ne stanno. Il contesto reale lo legge da Ollama o LM Studio, che viene caricato con 32k.
+5. **Risponde.** Il modello cita gli estratti `[E1]`, `[E2]`, che diventano etichette cliccabili con documento e pagina. Se l'informazione manca, risponde «Non presente nei documenti».
+6. **Controlla.** Dopo la risposta l'app verifica che:
    - ogni citazione esista davvero;
    - non ci siano frasi senza fonte;
    - siano segnalate le versioni dello stesso documento (es. `Contratto_Nordwand_2016` → `Rinnovo_Nordwand_2024`), indicando la più recente.
-6. **Si difende.** Toglie dagli estratti le frasi che danno ordini a un'AI prima che arrivino al modello, e le mostra come «istruzioni nascoste ignorate».
-7. **Si aggiorna da sola.** Quando aggiungi, cambi o togli un file nella cartella, reindicizza solo quel file.
+7. **Si difende.** Toglie dagli estratti le frasi che danno ordini a un'AI prima che arrivino al modello, e le mostra come «istruzioni nascoste ignorate».
+8. **Si aggiorna da sola.** Quando aggiungi, cambi o togli un file nella cartella, reindicizza solo quel file.
+
+**Freno:**
+- **Ferma** interrompe la risposta in corso.
+- **Spegni il motore** toglie tutti i modelli dalla memoria di Ollama e LM Studio, per far raffreddare il Mac.
 
 ## Modelli
 

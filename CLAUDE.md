@@ -11,6 +11,8 @@ App locale per fare domande a cartelle di documenti con citazioni documento+pagi
 - Dopo una modifica al Python l'app va riavviata (non c'è reload).
 
 ## Regole del progetto
+- Lettura `auto` (`servizio.prepara`): se l'archivio entra nel contesto vero del modello (`modelli.contesto`), il modello legge tutto l'archivio; altrimenti si usa il RAG a pagine intere. LM Studio va caricato con `lms load -c 32768` (senza `--json`). Ollama via API OpenAI ignora `num_ctx`: MiniCPM5 resta a 4.096 token.
+- La chiave OpenRouter sta in `.env` (fuori da git, permessi 600). Il modello preferito per fornitore è in `impostazioni.preferiti`.
 - I vettori si calcolano **sempre** in locale (Ollama `qwen3-embedding:0.6b`), qualunque modello risponda.
 - Un solo indice: `indice/archivio.db`. Il file è SQLite con FTS5 per le parole, mentre i vettori stanno come BLOB e in memoria come matrice numpy. Le impostazioni sono in `indice/impostazioni.json`, fuori da git.
 - Gli originali non si toccano mai. Un pezzo non attraversa due pagine.
