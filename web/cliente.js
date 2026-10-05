@@ -184,7 +184,9 @@ function disegnaScelta() {
   $("#mod-nome").textContent = S.scelta.modello ? nomeModello(S.scelta.modello) : "scegli un modello";
   $("#mod-nome").title = S.scelta.modello || "";
   const e = S.modelli[f];
-  $("#pallino-modello").className = "pallino " + (e ? (e.acceso ? "acceso" : "spento") : "");
+  const pronto = e && e.acceso && (f !== "openrouter" || st.openrouter_chiave);
+  $("#pallino-modello").className = "pallino " + (e ? (pronto ? "acceso" : "spento") : "");
+  $("#pallino-modello").title = f === "openrouter" && !st.openrouter_chiave ? "Manca la chiave OPENROUTER_API_KEY" : "";
   $("#fascia").innerHTML = f === "openrouter"
     ? `<div class="fascia-uscita" role="alert">${icona("uscita")} Gli estratti dei documenti escono dal computer</div>` : "";
 }
@@ -196,7 +198,11 @@ function apriPannello(aperto) {
   if (aperto) mostraFornitore(S.scelta.fornitore);
 }
 $("#apri-modello").addEventListener("click", e => { e.stopPropagation(); apriPannello($("#pannello-modello").classList.contains("nascosto")); });
-document.addEventListener("click", e => { if (!e.target.closest("#pannello-modello")) apriPannello(false); });
+document.addEventListener("click", e => {
+  // un elemento appena ridisegnato non è più nel documento: il clic era comunque dentro il pannello
+  if (!e.target.isConnected || e.target.closest("#pannello-modello")) return;
+  apriPannello(false);
+});
 document.addEventListener("keydown", e => { if (e.key === "Escape") apriPannello(false); });
 
 async function mostraFornitore(f) {
