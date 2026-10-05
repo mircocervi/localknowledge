@@ -242,6 +242,9 @@ function disegnaListaModelli() {
   }
   const q = $("#filtro-modelli").value.toLowerCase();
   let lista = e.modelli.filter(m => !q || m.id.toLowerCase().includes(q) || (m.nome || "").toLowerCase().includes(q));
+  // il modello scelto (o il preferito) sempre in cima
+  const inCima = S.scelta.fornitore === f ? S.scelta.modello : S.stato.preferiti?.[f];
+  lista.sort((a, b) => (b.id === inCima) - (a.id === inCima));
   const totale = lista.length;
   if (f === "openrouter") lista = lista.slice(0, 120);
   $("#lista-modelli").innerHTML = lista.map(m => {
